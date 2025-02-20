@@ -36,9 +36,9 @@ router.post('/register', async (req, res) => {
     const user = new User(req.body);
     await user.save();
 
-    // Generate token
+    // Generate token with employerId or workerId based on role
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, userId: user._id }, // Include userId in the token payload
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
@@ -73,9 +73,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Generate token
+    // Generate token with employerId or workerId based on role
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, userId: user._id }, // Include userId in the token payload
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );

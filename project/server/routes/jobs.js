@@ -76,27 +76,24 @@ router.get('/:id', async (req, res) => {
 router.use(verifyToken); // Apply authentication middleware to all routes below this
 
 // Create job
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
-    console.log('Creating job with data:', req.body);
+    console.log('Creating job with data:', {
+      ...req.body,
+      employerId: req.user.id // Log the data being used
+    });
     
     // Create new job with employerId from authenticated user
     const job = new Job({
       ...req.body,
-      employerId: req.user._id,
-      status: 'open',
-      createdAt: new Date()
+      employerId: req.user.id, // Use the ID from the authenticated user
+      status: 'open'
     });
 
-    // Save to database
     const savedJob = await job.save();
     console.log('Job saved successfully:', savedJob);
 
-    // Populate employer details before sending response
-    const populatedJob = await Job.findById(savedJob._id)
-      .populate('employerId', 'name location');
-
-    res.status(201).json(populatedJob);
+    res.status(201).json(savedJob);
   } catch (error) {
     console.error('Error creating job:', error);
     res.status(500).json({ 

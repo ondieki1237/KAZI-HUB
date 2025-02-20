@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PlusCircle, X } from 'lucide-react';
 import { jobs } from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 const categories = [
   'Plumbing',
@@ -17,190 +18,295 @@ const categories = [
 
 function PostJob() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Redirect if not logged in
+  React.useEffect(() => {
+    if (!user) {
+      toast.error('Please login to post a job');
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
+  // State for job data and skills
   const [jobData, setJobData] = useState({
     title: '',
     description: '',
     category: '',
-    location: '',
+    locationArea: '',
+    locationCity: '',
     budget: 0,
-    deadline: '',
-    requirements: [] as string[],
+    duration: '',
+    requirements: {
+      isRemote: false,
+      numberOfOpenings: 1,
+      isConfidential: false,
+    },
+    skillsRequired: [] as string[],
+    status: 'open',
+    applications: [],
   });
-  const [requirement, setRequirement] = useState('');
 
-  const handleAddRequirement = () => {
-    if (requirement.trim()) {
+  const [skill, setSkill] = useState('');
+
+  // Add a skill to the list
+  const handleAddSkill = () => {
+    if (skill.trim()) {
       setJobData({
         ...jobData,
-        requirements: [...jobData.requirements, requirement.trim()],
+        skillsRequired: [...jobData.skillsRequired, skill.trim()],
       });
-      setRequirement('');
+      setSkill('');
     }
   };
 
-  const handleRemoveRequirement = (index: number) => {
+  // Remove a skill from the list
+  const handleRemoveSkill = (index: number) => {
     setJobData({
       ...jobData,
-      requirements: jobData.requirements.filter((_, i) => i !== index),
+      skillsRequired: jobData.skillsRequired.filter((_, i) => i !== index),
     });
   };
 
+  // Handle location input change (split into area and city)
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [area, city] = e.target.value.split(',').map((s) => s.trim());
+    setJobData({
+      ...jobData,
+      locationArea: area || '',
+      locationCity: city || '',
+    });
+  };
+
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user?.id) {
+      toast.error('Please login to post a job');
+      navigate('/login');
+      return;
+    }
+
     try {
-      await jobs.create(jobData);
-      toast.success('Job posted successfully!');
-      navigate('/');
-    } catch (error) {
-      toast.error('Failed to post job. Please try again.');
+      // Validate required fields
+      if (
+        !jobData.title ||
+        !jobData.description ||
+        !jobData.category ||
+        !jobData.locationArea ||
+        !jobData.locationCity ||
+        !jobData.duration
+      ) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      // Ensure budget is a positive number
+      if (jobData.budget <= 0) {
+        toast.error('Budget must be a positive number');
+        return;
+      }
+
+      // Format the data for the API
+      const jobPayload = {
+        ...jobData,
+        location: `${jobData.locationArea}, ${jobData.locationCity}`,
+        status: 'open' as const,
+        applications: []
+      };
+
+      console.log('Submitting job data:', jobPayload);
+
+      await jobs.create(jobPayload);
+      toast.success('Job posted successfully');
+      navigate('/jobs');
+    } catch (error: any) {
+      console.error('Error posting job:', error.response?.data || error);
+      toast.error(error.response?.data?.message || 'Failed to post job');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Post a New Job</h1>
-        
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-              Job Title
-            </label>
+    <div className="p-4 max-w-lg mx-auto">
+      <h2 className="text-2xl font-bold mb-4">Post a New Job</h2>
+      <form onSubmit={handleSubmit}>
+        {/* Job Title */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Job Title</label>
+          <input
+            type="text"
+            value={jobData.title}
+            onChange={(e) =>
+              setJobData({ ...jobData, title: e.target.value })
+            }
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            placeholder="Enter job title"
+            required
+          />
+        </div>
+
+        {/* Category */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Category</label>
+          <select
+            value={jobData.category}
+            onChange={(e) =>
+              setJobData({ ...jobData, category: e.target.value })
+            }
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            required
+          >
+            <option value="" disabled>Select a category</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Description */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Description</label>
+          <textarea
+            value={jobData.description}
+            onChange={(e) =>
+              setJobData({ ...jobData, description: e.target.value })
+            }
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            rows={4}
+            placeholder="Enter job description"
+            required
+          ></textarea>
+        </div>
+
+        {/* Location */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Location (Area, City)</label>
+          <input
+            type="text"
+            value={`${jobData.locationArea}, ${jobData.locationCity}`}
+            onChange={handleLocationChange}
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            placeholder="Enter area, city"
+            required
+          />
+        </div>
+
+        {/* Duration */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Duration</label>
+          <input
+            type="text"
+            value={jobData.duration}
+            onChange={(e) =>
+              setJobData({ ...jobData, duration: e.target.value })
+            }
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            placeholder="Enter job duration"
+            required
+          />
+        </div>
+
+        {/* Skills Required */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Skills Required</label>
+          <div className="flex items-center mb-2">
             <input
               type="text"
-              id="title"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-medium focus:ring focus:ring-teal-light focus:ring-opacity-50"
-              value={jobData.title}
-              onChange={(e) => setJobData({ ...jobData, title: e.target.value })}
+              value={skill}
+              onChange={(e) => setSkill(e.target.value)}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500 mr-2"
+              placeholder="Add a required skill"
             />
-          </div>
-
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-              Category
-            </label>
-            <select
-              id="category"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-medium focus:ring focus:ring-teal-light focus:ring-opacity-50"
-              value={jobData.category}
-              onChange={(e) => setJobData({ ...jobData, category: e.target.value })}
-            >
-              <option value="">Select a category</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <textarea
-              id="description"
-              required
-              rows={4}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-medium focus:ring focus:ring-teal-light focus:ring-opacity-50"
-              value={jobData.description}
-              onChange={(e) => setJobData({ ...jobData, description: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-              Location
-            </label>
-            <input
-              type="text"
-              id="location"
-              required
-              placeholder="e.g., Westlands, Nairobi"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-medium focus:ring focus:ring-teal-light focus:ring-opacity-50"
-              value={jobData.location}
-              onChange={(e) => setJobData({ ...jobData, location: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="budget" className="block text-sm font-medium text-gray-700">
-              Budget (KES)
-            </label>
-            <input
-              type="number"
-              id="budget"
-              required
-              min="0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-medium focus:ring focus:ring-teal-light focus:ring-opacity-50"
-              value={jobData.budget}
-              onChange={(e) => setJobData({ ...jobData, budget: Number(e.target.value) })}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="deadline" className="block text-sm font-medium text-gray-700">
-              Deadline
-            </label>
-            <input
-              type="date"
-              id="deadline"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-medium focus:ring focus:ring-teal-light focus:ring-opacity-50"
-              value={jobData.deadline}
-              onChange={(e) => setJobData({ ...jobData, deadline: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Requirements</label>
-            <div className="mt-1 flex">
-              <input
-                type="text"
-                className="flex-1 rounded-l-md border-gray-300 focus:border-teal-medium focus:ring focus:ring-teal-light focus:ring-opacity-50"
-                value={requirement}
-                onChange={(e) => setRequirement(e.target.value)}
-                placeholder="Add a requirement"
-              />
-              <button
-                type="button"
-                onClick={handleAddRequirement}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md text-white bg-teal-dark hover:bg-teal-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-medium"
-              >
-                <PlusCircle className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="mt-2 space-y-2">
-              {jobData.requirements.map((req, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between bg-gray-50 p-2 rounded-md"
-                >
-                  <span className="text-sm text-gray-700">{req}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveRequirement(index)}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-4">
             <button
-              type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-teal-dark to-teal-medium hover:from-teal-medium hover:to-teal-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-medium"
+              type="button"
+              onClick={handleAddSkill}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              Post Job
+              <PlusCircle size={16} />
             </button>
           </div>
-        </form>
-      </div>
+          <div className="flex flex-wrap gap-2">
+            {jobData.skillsRequired.map((skill, index) => (
+              <div key={index} className="flex items-center bg-gray-200 px-3 py-1 rounded">
+                {skill}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveSkill(index)}
+                  className="ml-2 text-gray-400 hover:text-gray-500"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Requirements */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Requirements</label>
+          <div className="flex items-center mb-2">
+            <input
+              type="checkbox"
+              checked={jobData.requirements.isRemote}
+              onChange={(e) =>
+                setJobData({
+                  ...jobData,
+                  requirements: { ...jobData.requirements, isRemote: e.target.checked },
+                })
+              }
+              className="mr-2"
+            />
+            <span>Remote Work Available</span>
+          </div>
+          <div className="flex items-center mb-2">
+            <label className="mr-2">Number of Openings</label>
+            <input
+              type="number"
+              min={1}
+              value={jobData.requirements.numberOfOpenings}
+              onChange={(e) =>
+                setJobData({
+                  ...jobData,
+                  requirements: {
+                    ...jobData.requirements,
+                    numberOfOpenings: parseInt(e.target.value, 10),
+                  },
+                })
+              }
+              className="w-20 px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Budget */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Budget (KES)</label>
+          <input
+            type="number"
+            min={1}
+            value={jobData.budget}
+            onChange={(e) =>
+              setJobData({ ...jobData, budget: Number(e.target.value) })
+            }
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            placeholder="Enter budget in KES"
+            required
+          />
+        </div>
+
+        {/* Submit Button */}
+        <div className="text-right">
+          <button
+            type="submit"
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            Post Job
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
