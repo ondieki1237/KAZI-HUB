@@ -119,6 +119,35 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get job applications
+router.get('/:id/applications', verifyToken, async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id)
+      .populate({
+        path: 'applications.workerId',
+        select: 'name email phone'
+      });
+
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    // Check if user is the employer
+    if (job.employerId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    res.json({
+      _id: job._id,
+      title: job.title,
+      applications: job.applications
+    });
+  } catch (error) {
+    console.error('Error fetching applications:', error);
+    res.status(500).json({ message: 'Error fetching applications', error: error.message });
+  }
+});
+
 // Protected routes
 router.use(verifyToken); // Apply authentication middleware to all routes below this
 
@@ -228,6 +257,49 @@ router.patch('/:id/status', async (req, res) => {
     res.json(job);
   } catch (error) {
     res.status(500).json({ message: 'Error updating job status', error: error.message });
+  }
+});
+
+// Update application status
+router.patch('/:jobId/applications/:applicationId', verifyToken, async (req, res) => {
+  try {
+    const { jobId, applicationId } = req.params;
+    const { status } = req.body;
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    // Check if user is the employer
+    if (job.employerId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const application = job.applications.id(applicationId);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    application.status = status;
+    await job.save();
+
+    // Create notification for the applicant
+    const notification = new Notification({
+      recipient: application.workerId,
+      type: 'status_update',
+      jobId: job._id,
+      senderId: req.user.id,
+      message: `Your application for "${job.title}" has been ${status}`,
+      read: false
+    });
+
+    await notification.save();
+
+    res.json(application);
+  } catch (error) {
+    console.error('Error updating application status:', error);
+    res.status(500).json({ message: 'Error updating application status', error: error.message });
   }
 });
 

@@ -156,6 +156,24 @@ export const jobs = {
     const response = await api.post(`/jobs/${jobId}/notifications`, notification);
     return response.data;
   },
+  getJobApplications: async (jobId: string) => {
+    try {
+      const response = await api.get(`/jobs/${jobId}/applications`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching job applications:', error);
+      throw error;
+    }
+  },
+  updateApplicationStatus: async (jobId: string, applicationId: string, status: string) => {
+    try {
+      const response = await api.patch(`/jobs/${jobId}/applications/${applicationId}`, { status });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      throw error;
+    }
+  },
 };
 
 export const profiles = {
@@ -211,14 +229,10 @@ export const payments = {
 };
 
 export const chat = {
-  getMessages: async (jobId: string) => {
+  getMessages: async (jobId: string, userId: string) => {
     try {
-      console.log('Fetching messages for job:', jobId);
-      const response = await api.get(`/chats/${jobId}/messages`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      console.log('Fetching messages for job:', jobId, 'with user:', userId);
+      const response = await api.get(`/chats/${jobId}/messages/${userId}`);
       console.log('Messages response:', response.data);
       return response.data;
     } catch (error) {
@@ -227,17 +241,10 @@ export const chat = {
     }
   },
 
-  sendMessage: async (jobId: string, content: string) => {
+  sendMessage: async (jobId: string, userId: string, content: string) => {
     try {
-      console.log('Sending message:', { jobId, content });
-      const response = await api.post(`/chats/${jobId}/messages`, 
-        { content },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
+      console.log('Sending message:', { jobId, userId, content });
+      const response = await api.post(`/chats/${jobId}/messages/${userId}`, { content });
       console.log('Send message response:', response.data);
       return response.data;
     } catch (error) {
@@ -246,12 +253,12 @@ export const chat = {
     }
   },
 
-  createChat: async (jobId: string, recipientId: string) => {
+  getConversations: async () => {
     try {
-      const response = await api.post('/chats', { jobId, recipientId });
+      const response = await api.get('/chats/conversations');
       return response.data;
     } catch (error) {
-      console.error('Error creating chat:', error);
+      console.error('Error fetching conversations:', error);
       throw error;
     }
   }

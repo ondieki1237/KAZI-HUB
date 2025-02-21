@@ -14,6 +14,8 @@ import CVMaker from './pages/CVMaker';
 import JobDetail from './pages/JobDetail';
 import MyProfile from './pages/MyProfile';
 import Chat from './pages/Chat';
+import Conversations from './pages/Conversations';
+import ViewApplications from './pages/ViewApplications';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -34,7 +36,9 @@ function App() {
           <Route path="/cv-maker" element={<CVMaker />} />
           <Route path="/jobs/:jobId" element={<JobDetail />} />
           <Route path="/profile/my-profile" element={<MyProfile />} />
-          <Route path="/chat/:jobId" element={<Chat />} />
+          <Route path="/messages" element={<Conversations />} />
+          <Route path="/chat/:jobId/:userId" element={<Chat />} />
+          <Route path="/jobs/:jobId/applications" element={<ViewApplications />} />
         </Routes>
       </Router>
     </AuthProvider>

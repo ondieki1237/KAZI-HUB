@@ -14,7 +14,7 @@ interface Message {
 }
 
 const Chat: React.FC = () => {
-  const { jobId } = useParams();
+  const { jobId, userId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,7 +32,7 @@ const Chat: React.FC = () => {
     const fetchMessages = async () => {
       try {
         setLoading(true);
-        const response = await chat.getMessages(jobId!);
+        const response = await chat.getMessages(jobId!, userId!);
         setMessages(response);
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -46,7 +46,7 @@ const Chat: React.FC = () => {
     // Poll for new messages every 5 seconds
     const interval = setInterval(fetchMessages, 5000);
     return () => clearInterval(interval);
-  }, [jobId, user, navigate]);
+  }, [jobId, userId, user, navigate]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +54,7 @@ const Chat: React.FC = () => {
 
     try {
       setSending(true);
-      const response = await chat.sendMessage(jobId!, newMessage.trim());
+      const response = await chat.sendMessage(jobId!, userId!, newMessage.trim());
       setMessages([...messages, response]);
       setNewMessage('');
       // Scroll to bottom

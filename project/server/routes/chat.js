@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import Message from '../models/Message.js';
 import { verifyToken } from '../middleware/auth.js';
 import cors from 'cors';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -40,13 +41,21 @@ export const initializeSocket = (server) => {
 // Handle CORS preflight requests
 router.options('/:jobId/messages', cors());
 
-// Get messages for a job
-router.get('/:jobId/messages', verifyToken, async (req, res) => {
+// Get messages for a specific job and user pair
+router.get('/:jobId/messages/:userId', verifyToken, async (req, res) => {
   try {
-    console.log('Fetching messages for job:', req.params.jobId);
-    const messages = await Message.find({ jobId: req.params.jobId })
-      .sort({ createdAt: 1 })
-      .populate('senderId', 'name');
+    console.log('Fetching messages for job:', req.params.jobId, 'with user:', req.params.userId);
+    
+    const messages = await Message.find({
+      jobId: req.params.jobId,
+      $or: [
+        { senderId: req.user.id, recipientId: req.params.userId },
+        { senderId: req.params.userId, recipientId: req.user.id }
+      ]
+    })
+    .sort({ createdAt: 1 })
+    .populate('senderId', 'name')
+    .populate('recipientId', 'name');
     
     console.log(`Found ${messages.length} messages`);
     res.json(messages);
@@ -56,31 +65,106 @@ router.get('/:jobId/messages', verifyToken, async (req, res) => {
   }
 });
 
-// Send a message
-router.post('/:jobId/messages', verifyToken, async (req, res) => {
+// Send a message to a specific user
+router.post('/:jobId/messages/:userId', verifyToken, async (req, res) => {
   try {
     console.log('New message:', {
       jobId: req.params.jobId,
       senderId: req.user.id,
+      recipientId: req.params.userId,
       content: req.body.content
     });
 
     const message = new Message({
       jobId: req.params.jobId,
       senderId: req.user.id,
+      recipientId: req.params.userId,
       content: req.body.content
     });
 
     await message.save();
-    console.log('Message saved:', message);
-
-    // Populate sender info
     await message.populate('senderId', 'name');
+    await message.populate('recipientId', 'name');
     
     res.status(201).json(message);
   } catch (error) {
     console.error('Error sending message:', error);
     res.status(500).json({ message: 'Error sending message', error: error.message });
+  }
+});
+
+// Get all chat conversations for a user
+router.get('/conversations', verifyToken, async (req, res) => {
+  try {
+    // Find all unique conversations
+    const conversations = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { senderId: mongoose.Types.ObjectId(req.user.id) },
+            { recipientId: mongoose.Types.ObjectId(req.user.id) }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: {
+            jobId: '$jobId',
+            otherUser: {
+              $cond: [
+                { $eq: ['$senderId', mongoose.Types.ObjectId(req.user.id)] },
+                '$recipientId',
+                '$senderId'
+              ]
+            }
+          },
+          lastMessage: { $last: '$content' },
+          updatedAt: { $max: '$createdAt' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'jobs',
+          localField: '_id.jobId',
+          foreignField: '_id',
+          as: 'job'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id.otherUser',
+          foreignField: '_id',
+          as: 'otherUser'
+        }
+      },
+      {
+        $unwind: '$job'
+      },
+      {
+        $unwind: '$otherUser'
+      },
+      {
+        $project: {
+          jobId: '$_id.jobId',
+          jobTitle: '$job.title',
+          otherUser: {
+            _id: '$otherUser._id',
+            name: '$otherUser.name'
+          },
+          lastMessage: 1,
+          updatedAt: 1
+        }
+      },
+      {
+        $sort: { updatedAt: -1 }
+      }
+    ]);
+
+    res.json(conversations);
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    res.status(500).json({ message: 'Error fetching conversations', error: error.message });
   }
 });
 
