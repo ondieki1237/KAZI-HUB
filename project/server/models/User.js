@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
     enum: ['worker', 'employer'],
     required: true
   },
-  location: {
+  addressString: {
     type: String,
     required: true
   },
@@ -69,6 +69,9 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Remove any existing indexes
+userSchema.index({ location: 1 }, { background: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

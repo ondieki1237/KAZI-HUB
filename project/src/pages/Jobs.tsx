@@ -23,7 +23,7 @@ const Jobs: React.FC = () => {
     try {
       setLoading(true);
       const response = await jobs.getFeatured();
-      setAllJobs(response);
+      setAllJobs(response); // Ensure this contains all jobs
     } catch (error) {
       console.error('Error fetching jobs:', error);
       toast.error('Failed to load jobs');
@@ -47,7 +47,7 @@ const Jobs: React.FC = () => {
         return matchesSearch && matchesCategory && matchesLocation;
       });
 
-      setAllJobs(filteredJobs);
+      setAllJobs(filteredJobs); // Update the jobs list with filtered results
     } catch (error) {
       console.error('Error searching jobs:', error);
       toast.error('Failed to search jobs');
@@ -138,7 +138,7 @@ const Jobs: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allJobs.map((job) => (
+            {allJobs.map((job) => ( // Ensure all jobs are displayed
               <div
                 key={job._id}
                 onClick={() => navigate(`/jobs/${job._id}`)}

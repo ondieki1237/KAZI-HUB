@@ -1,6 +1,8 @@
 import express from 'express';
 import { Server } from 'socket.io';
 import Message from '../models/Message.js';
+import { verifyToken } from '../middleware/auth.js';
+import cors from 'cors';
 
 const router = express.Router();
 
@@ -18,19 +20,13 @@ export const initializeSocket = (server) => {
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // Join a chat room
-    socket.on('join_room', (roomId) => {
-      socket.join(roomId);
+    socket.on('join_room', (jobId) => {
+      socket.join(jobId);
+      console.log(`User ${socket.id} joined room ${jobId}`);
     });
 
-    // Handle new messages
     socket.on('send_message', (data) => {
-      socket.to(data.roomId).emit('receive_message', data);
-    });
-
-    // Handle typing status
-    socket.on('typing', (data) => {
-      socket.to(data.roomId).emit('user_typing', data);
+      socket.to(data.jobId).emit('receive_message', data);
     });
 
     socket.on('disconnect', () => {
@@ -41,40 +37,50 @@ export const initializeSocket = (server) => {
   return io;
 };
 
-// Get chat history
-router.get('/:jobId', async (req, res) => {
+// Handle CORS preflight requests
+router.options('/:jobId/messages', cors());
+
+// Get messages for a job
+router.get('/:jobId/messages', verifyToken, async (req, res) => {
   try {
-    const { jobId } = req.params;
-    const messages = await Message.find({ jobId })
+    console.log('Fetching messages for job:', req.params.jobId);
+    const messages = await Message.find({ jobId: req.params.jobId })
       .sort({ createdAt: 1 })
-      .populate('senderId', 'name avatar');
+      .populate('senderId', 'name');
     
-    res.json({ messages });
+    console.log(`Found ${messages.length} messages`);
+    res.json(messages);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch chat history' });
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ message: 'Error fetching messages', error: error.message });
   }
 });
 
-// Save message
-router.post('/:jobId/messages', async (req, res) => {
+// Send a message
+router.post('/:jobId/messages', verifyToken, async (req, res) => {
   try {
-    const { jobId } = req.params;
-    const { content } = req.body;
-    
-    const message = new Message({
-      jobId,
+    console.log('New message:', {
+      jobId: req.params.jobId,
       senderId: req.user.id,
-      content
+      content: req.body.content
     });
-    
+
+    const message = new Message({
+      jobId: req.params.jobId,
+      senderId: req.user.id,
+      content: req.body.content
+    });
+
     await message.save();
-    
-    // Populate sender info before sending response
-    await message.populate('senderId', 'name avatar');
+    console.log('Message saved:', message);
+
+    // Populate sender info
+    await message.populate('senderId', 'name');
     
     res.status(201).json(message);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to save message' });
+    console.error('Error sending message:', error);
+    res.status(500).json({ message: 'Error sending message', error: error.message });
   }
 });
 

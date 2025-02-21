@@ -49,8 +49,20 @@ export const auth = {
     role: 'worker' | 'employer';
     location: string;
   }) => {
-    const response = await api.post('/auth/register', userData);
-    return response.data;
+    try {
+      console.log('Making registration request with data:', {
+        ...userData,
+        password: '[REDACTED]'
+      });
+      
+      const response = await api.post('/auth/register', userData);
+      console.log('Registration response:', response.data);
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Registration API error:', error.response?.data || error);
+      throw error;
+    }
   },
   logout: () => {
     localStorage.removeItem('token');
@@ -107,9 +119,16 @@ export const jobs = {
       throw new Error('Error fetching job details');
     }
   },
-  apply: async (jobId: string, application: Omit<JobApplication, 'id' | 'jobId' | 'status' | 'createdAt'>) => {
-    const response = await api.post(`/jobs/${jobId}/apply`, application);
-    return response.data;
+  apply: async (jobId: string, application: { message: string; coverLetter: string }) => {
+    try {
+      console.log('Applying for job:', jobId, 'with data:', application);
+      const response = await api.post(`/jobs/${jobId}/apply`, application);
+      console.log('Application response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error applying for job:', error);
+      throw error;
+    }
   },
   updateStatus: async (jobId: string, status: Job['status']) => {
     const response = await api.patch(`/jobs/${jobId}/status`, { status });
@@ -120,7 +139,21 @@ export const jobs = {
     return response.data;
   },
   getMyPostedJobs: async () => {
-    const response = await api.get('/jobs/mine');
+    try {
+      console.log('Fetching my posted jobs');
+      const response = await api.get('/jobs/my-posted');
+      console.log('My posted jobs response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching my posted jobs:', error);
+      if (error.response?.status === 401) {
+        throw new Error('Please login to view your posted jobs');
+      }
+      throw error;
+    }
+  },
+  createNotification: async (jobId: string, notification: { type: string; message: string }) => {
+    const response = await api.post(`/jobs/${jobId}/notifications`, notification);
     return response.data;
   },
 };
@@ -178,18 +211,50 @@ export const payments = {
 };
 
 export const chat = {
-  getChats: async () => {
-    const response = await api.get('/chats');
-    return response.data;
+  getMessages: async (jobId: string) => {
+    try {
+      console.log('Fetching messages for job:', jobId);
+      const response = await api.get(`/chats/${jobId}/messages`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      console.log('Messages response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      throw error;
+    }
   },
-  getMessages: async (chatId: string) => {
-    const response = await api.get(`/chats/${chatId}/messages`);
-    return response.data;
+
+  sendMessage: async (jobId: string, content: string) => {
+    try {
+      console.log('Sending message:', { jobId, content });
+      const response = await api.post(`/chats/${jobId}/messages`, 
+        { content },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      console.log('Send message response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
   },
-  sendMessage: async (chatId: string, content: string) => {
-    const response = await api.post(`/chats/${chatId}/messages`, { content });
-    return response.data;
-  },
+
+  createChat: async (jobId: string, recipientId: string) => {
+    try {
+      const response = await api.post('/chats', { jobId, recipientId });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating chat:', error);
+      throw error;
+    }
+  }
 };
 
 export default api;

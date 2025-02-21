@@ -25,7 +25,15 @@ const SeeMyPostedJobs: React.FC = () => {
     };
 
     fetchPostedJobs();
+
+    // Set up polling to refresh job data
+    const interval = setInterval(fetchPostedJobs, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
+
+  const handleViewApplications = (jobId: string) => {
+    navigate(`/jobs/${jobId}/applications`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,63 +59,92 @@ const SeeMyPostedJobs: React.FC = () => {
             {postedJobs.map((job) => (
               <div
                 key={job._id}
-                className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow"
+                className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
               >
                 {/* Job Title and Category */}
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-gray-800">{job.title}</h3>
-                  <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full">
-                    {job.category}
-                  </span>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-800 text-xl">{job.title}</h3>
+                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full mt-2 inline-block">
+                      {job.category}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">
+                      Applications: <span className="font-semibold">{job.applications?.length || 0}</span>
+                    </div>
+                    <button
+                      onClick={() => handleViewApplications(job._id)}
+                      className="mt-2 text-teal-dark hover:text-teal-medium text-sm font-medium"
+                    >
+                      View Applications
+                    </button>
+                  </div>
                 </div>
 
-                {/* Location */}
-                <div className="flex items-center text-gray-500 text-sm mt-2">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  <span>{`${job.locationArea}, ${job.locationCity}`}</span>
-                </div>
+                {/* Job Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    {/* Location */}
+                    <div className="flex items-center text-gray-600 mb-2">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <span>{`${job.locationArea}, ${job.locationCity}`}</span>
+                    </div>
 
-                {/* Budget */}
-                <div className="flex items-center text-teal-dark mt-2">
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  <span className="font-semibold">KES {job.budget.toLocaleString()}</span>
-                </div>
+                    {/* Budget */}
+                    <div className="flex items-center text-gray-600 mb-2">
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      <span>KES {job.budget.toLocaleString()}</span>
+                    </div>
 
-                {/* Duration */}
-                <div className="flex items-center text-gray-500 text-sm mt-2">
-                  <Clock className="h-4 w-4 mr-1" />
-                  <span>{job.duration}</span>
+                    {/* Duration */}
+                    <div className="flex items-center text-gray-600">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span>{job.duration}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    {/* Recent Applications */}
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-700 mb-2">Recent Applications:</h4>
+                      {job.applications && job.applications.length > 0 ? (
+                        <ul className="space-y-2">
+                          {job.applications.slice(0, 3).map((application) => (
+                            <li key={application._id} className="flex items-center text-gray-600">
+                              <User className="h-4 w-4 mr-2" />
+                              <span>{application.worker?.name || 'Anonymous'}</span>
+                              <span className="ml-2 text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                                {application.status}
+                              </span>
+                            </li>
+                          ))}
+                          {job.applications.length > 3 && (
+                            <li className="text-sm text-teal-dark">
+                              +{job.applications.length - 3} more applications
+                            </li>
+                          )}
+                        </ul>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No applications yet</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Skills Required */}
                 <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-700">Skills Required:</p>
-                  <div className="flex flex-wrap mt-2">
+                  <h4 className="font-medium text-gray-700 mb-2">Skills Required:</h4>
+                  <div className="flex flex-wrap gap-2">
                     {job.skillsRequired.map((skill) => (
                       <span
                         key={skill}
-                        className="bg-gray-200 text-gray-700 rounded-md py-1 px-3 mr-2 mb-2"
+                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"
                       >
                         {skill}
                       </span>
                     ))}
                   </div>
-                </div>
-
-                {/* Interested Users */}
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-700">People Interested:</p>
-                  <ul className="list-disc pl-6 mt-2">
-                    {job.interestedUsers?.length > 0 ? (
-                      job.interestedUsers.map((user, index) => (
-                        <li key={index} className="text-gray-600">
-                          <User className="h-4 w-4 inline mr-1" /> {user.name}
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-gray-500">No one has shown interest yet.</li>
-                    )}
-                  </ul>
                 </div>
               </div>
             ))}

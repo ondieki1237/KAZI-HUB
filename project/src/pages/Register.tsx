@@ -25,31 +25,52 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
+    // Validate phone number format
+    const phoneRegex = /^\d{10,12}$/;
+    if (!phoneRegex.test(formData.phone.replace(/[^0-9]/g, ''))) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await auth.register({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone,
-        location: formData.location,
-        role: formData.role
+      
+      // Log the data being sent (excluding password)
+      console.log('Sending registration data:', {
+        ...formData,
+        password: '[REDACTED]',
+        confirmPassword: '[REDACTED]'
       });
 
-      if (response.token) {
+      // Remove confirmPassword before sending to API
+      const { confirmPassword, ...registrationData } = formData;
+      
+      const response = await auth.register(registrationData);
+      console.log('Registration response:', response);
+
+      if (response.token && response.user) {
+        // Store auth data
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
-        toast.success('Registration successful!');
+        
+        toast.success('Registration successful! Welcome to BlueCollar');
         navigate('/');
+      } else {
+        throw new Error('Invalid response from server');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      toast.error('Registration failed. Please try again.');
+      toast.error(
+        error.response?.data?.message || 
+        error.message || 
+        'Registration failed. Please try again.'
+      );
     } finally {
       setLoading(false);
     }

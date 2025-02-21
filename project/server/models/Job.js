@@ -1,5 +1,23 @@
 import mongoose from 'mongoose';
 
+const applicationSchema = new mongoose.Schema({
+  workerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'pending'
+  },
+  appliedAt: {
+    type: Date,
+    default: Date.now
+  },
+  message: String
+});
+
 const jobSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -57,21 +75,7 @@ const jobSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  applications: [{
-    workerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    status: {
-      type: String,
-      enum: ['pending', 'accepted', 'rejected'],
-      default: 'pending'
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }]
+  applications: [applicationSchema]
 }, {
   timestamps: true
 });

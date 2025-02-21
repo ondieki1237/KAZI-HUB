@@ -1,13 +1,37 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-interface AuthContextType {
-  user: {
-    id: string;
-    email: string;
-    role: string;
-  } | null;
+interface User {
+  id: string;
+  email: string;
+  role: string;
 }
 
-export const AuthContext = createContext<AuthContextType>({ user: null });
+interface AuthContextType {
+  user: User | null;
+  setUser: (user: User | null) => void;
+}
+
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  setUser: () => {}
+});
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  useEffect(() => {
+    // Log auth state changes
+    console.log('Auth state changed:', { user });
+  }, [user]);
+
+  return (
+    <AuthContext.Provider value={{ user, setUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
 export const useAuth = () => useContext(AuthContext); 

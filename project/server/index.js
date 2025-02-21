@@ -29,7 +29,9 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://your-production-domain.com' 
     : 'http://localhost:5173',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -75,7 +77,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/users', verifyToken, userRoutes);
 app.use('/api/mpesa', verifyToken, mpesaRoutes);
-app.use('/api/chat', verifyToken, chatRoutes);
+app.use('/api/chats', verifyToken, chatRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
@@ -95,7 +97,7 @@ if (process.env.NODE_ENV === 'production') {
         jobs: '/api/jobs',
         users: '/api/users',
         mpesa: '/api/mpesa',
-        chat: '/api/chat'
+        chat: '/api/chats'
       }
     });
   });

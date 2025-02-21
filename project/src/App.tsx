@@ -13,26 +13,31 @@ import SeeMyPostedJobs from './pages/SeeMyPostedJobs';
 import CVMaker from './pages/CVMaker';
 import JobDetail from './pages/JobDetail';
 import MyProfile from './pages/MyProfile';
+import Chat from './pages/Chat';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   return (
-    <Router>
-      <Toaster position="top-right" />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/post-job" element={<PostJob />} />
-        <Route path="/profile/:userId" element={<Profile />} />
-        <Route path="/jobs" element={<Jobs />} />
-        <Route path="/wallet" element={<Wallet />} />
-        <Route path="/jobs/create" element={<CreateJob />} />
-        <Route path="/jobs/my-posted" element={<SeeMyPostedJobs />} />
-        <Route path="/cv-maker" element={<CVMaker />} />
-        <Route path="/jobs/:jobId" element={<JobDetail />} />
-        <Route path="/profile/my-profile" element={<MyProfile />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Toaster position="top-right" />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/post-job" element={<PostJob />} />
+          <Route path="/profile/:userId" element={<Profile />} />
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/wallet" element={<Wallet />} />
+          <Route path="/jobs/create" element={<CreateJob />} />
+          <Route path="/jobs/my-posted" element={<SeeMyPostedJobs />} />
+          <Route path="/cv-maker" element={<CVMaker />} />
+          <Route path="/jobs/:jobId" element={<JobDetail />} />
+          <Route path="/profile/my-profile" element={<MyProfile />} />
+          <Route path="/chat/:jobId" element={<Chat />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

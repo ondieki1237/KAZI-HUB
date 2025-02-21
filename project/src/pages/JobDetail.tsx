@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import {
+  useParams,
+  useNavigate,
+} from 'react-router-dom';
 import {
   Briefcase,
   MapPin,
@@ -10,36 +13,46 @@ import {
   Phone,
   ArrowLeft,
   Calendar,
+  Bookmark,
+  MessageSquare,
 } from 'lucide-react';
 import { jobs } from '../services/api';
 import { Job } from '../types';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
+import { useAuth } from '../contexts/AuthContext';
 
 const JobDetail: React.FC = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
+
+  useEffect(() => {
+    console.log('Current auth state:', { 
+      isLoggedIn: !!user, 
+      user,
+      token: localStorage.getItem('token')
+    });
+  }, [user]);
 
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
         setLoading(true);
         setError(null);
-
         if (!jobId) {
           throw new Error('Invalid job ID');
         }
-
         console.log('Fetching job details for ID:', jobId); // Debug log
         const response = await jobs.getById(jobId);
-
         if (!response || !response._id) {
           throw new Error('Invalid job data received');
         }
-
         setJob(response);
       } catch (error: any) {
         console.error('Error fetching job details:', error);
@@ -51,9 +64,67 @@ const JobDetail: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchJobDetails();
   }, [jobId]);
+
+  useEffect(() => {
+    if (user && job) {
+      const userApplication = job.applications?.find(
+        app => app.workerId === user.id
+      );
+      setHasApplied(!!userApplication);
+      console.log('User application status:', {
+        hasApplied: !!userApplication,
+        userId: user.id,
+        applications: job.applications
+      });
+    }
+  }, [user, job]);
+
+  const handleApply = async () => {
+    console.log('Apply clicked, auth state:', {
+      user,
+      token: localStorage.getItem('token')
+    });
+
+    if (!user || !localStorage.getItem('token')) {
+      toast.error('Please login to apply for jobs');
+      navigate('/login');
+      return;
+    }
+
+    if (hasApplied) {
+      toast.error('You have already applied for this job');
+      return;
+    }
+
+    try {
+      setApplying(true);
+
+      const applicationData = {
+        message: `I am interested in this job opportunity.`,
+        coverLetter: `Application from ${user.email}`
+      };
+
+      const response = await jobs.apply(job!._id, applicationData);
+      
+      if (response.message === 'Application submitted successfully') {
+        setHasApplied(true);
+        toast.success('Application submitted successfully!');
+        
+        // Refresh job details to update application count
+        const updatedJob = await jobs.getById(job!._id);
+        setJob(updatedJob);
+      } else {
+        throw new Error('Failed to submit application');
+      }
+    } catch (error: any) {
+      console.error('Error applying for job:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit application');
+    } finally {
+      setApplying(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -196,6 +267,46 @@ const JobDetail: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <button
+                onClick={handleApply}
+                disabled={applying || hasApplied || !user || job?.employerId?._id === user?.id}
+                className={`w-full sm:w-auto flex items-center justify-center px-6 py-2 rounded-lg transition-colors ${
+                  !user 
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : applying 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : hasApplied
+                    ? 'bg-green-700 cursor-not-allowed'
+                    : job?.employerId?._id === user?.id
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-500 hover:bg-green-600'
+                } text-white`}
+              >
+                <Briefcase className="h-5 w-5 mr-2" />
+                {!user 
+                  ? 'Login to Apply'
+                  : applying 
+                  ? 'Applying...' 
+                  : hasApplied 
+                  ? 'Applied' 
+                  : 'Apply Now'
+                }
+              </button>
+
+              {/* Contact button */}
+              {user && job?.employerId?._id !== user?.id && (
+                <button
+                  onClick={() => navigate(`/chat/${job._id}`)}
+                  className="w-full sm:w-auto flex items-center justify-center px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  Contact Employer
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </main>
