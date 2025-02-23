@@ -11,6 +11,9 @@
     "server": "node server/index.js"
   },
   "dependencies": {
+    "@capacitor/android": "^7.0.1",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^7.0.1",
     "@types/socket.io-client": "^3.0.0",
     "axios": "^1.6.7",
     "bcryptjs": "^2.4.3",

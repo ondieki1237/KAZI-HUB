@@ -150,7 +150,8 @@ router.get('/conversations', verifyToken, async (req, res) => {
           jobTitle: '$job.title',
           otherUser: {
             _id: '$otherUser._id',
-            name: '$otherUser.name'
+            name: '$otherUser.name',
+            email: '$otherUser.email'
           },
           lastMessage: 1,
           updatedAt: 1

@@ -261,6 +261,16 @@ export const chat = {
       console.error('Error fetching conversations:', error);
       throw error;
     }
+  },
+
+  getUserDetails: async (userId: string) => {
+    try {
+      const response = await api.get(`/users/${userId}/details`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      throw error;
+    }
   }
 };
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jobs } from '../services/api';
 import PageHeader from '../components/PageHeader';
-import { User, Calendar, MessageSquare } from 'lucide-react';
+import { User, Calendar, MessageSquare, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Application {
@@ -12,6 +12,10 @@ interface Application {
     name: string;
     email: string;
     phone: string;
+    cv?: {
+      url: string;
+      updatedAt: string;
+    };
   };
   status: 'pending' | 'accepted' | 'rejected';
   message: string;
@@ -115,6 +119,26 @@ const ViewApplications: React.FC = () => {
                   </div>
 
                   <p className="text-gray-600 text-sm">{application.message}</p>
+
+                  {application.workerId.cv && (
+                    <div className="flex items-center text-gray-500">
+                      <Download className="h-4 w-4 mr-2" />
+                      <a
+                        href={application.workerId.cv.url}
+                        download
+                        className="text-sm text-blue-500 hover:text-blue-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.success('Downloading CV...');
+                        }}
+                      >
+                        Download CV
+                      </a>
+                      <span className="text-xs text-gray-400 ml-2">
+                        (Updated: {new Date(application.workerId.cv.updatedAt).toLocaleDateString()})
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-2 mt-4">
                     {application.status === 'pending' && (

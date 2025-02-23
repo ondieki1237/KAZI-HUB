@@ -299,7 +299,7 @@ const JobDetail: React.FC = () => {
               {/* Contact button */}
               {user && job?.employerId?._id !== user?.id && (
                 <button
-                  onClick={() => navigate(`/chat/${job._id}`)}
+                  onClick={() => navigate(`/chat/${job._id}/${job.employerId._id}`)}
                   className="w-full sm:w-auto flex items-center justify-center px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
                   <MessageSquare className="h-5 w-5 mr-2" />

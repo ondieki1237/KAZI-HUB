@@ -10,6 +10,7 @@ interface Conversation {
   otherUser: {
     _id: string;
     name: string;
+    email: string;
   };
   lastMessage: string;
   updatedAt: string;
@@ -52,7 +53,9 @@ const Conversations: React.FC = () => {
               {conversations.map((conversation) => (
                 <div
                   key={`${conversation.jobId}-${conversation.otherUser._id}`}
-                  onClick={() => navigate(`/chat/${conversation.jobId}/${conversation.otherUser._id}`)}
+                  onClick={() =>
+                    navigate(`/chat/${conversation.jobId}/${conversation.otherUser._id}`)
+                  }
                   className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
@@ -61,9 +64,14 @@ const Conversations: React.FC = () => {
                       {new Date(conversation.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex items-center text-gray-600 mt-2">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    <span>{conversation.otherUser.name}</span>
+                  <div className="flex flex-col text-gray-600 mt-2">
+                    <div className="flex items-center">
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      <span className="font-medium">{conversation.otherUser.name}</span>
+                    </div>
+                    <span className="text-sm text-gray-500 ml-6">
+                      {conversation.otherUser.email}
+                    </span>
                   </div>
                   <p className="text-gray-500 text-sm mt-2 truncate">{conversation.lastMessage}</p>
                 </div>
@@ -76,4 +84,4 @@ const Conversations: React.FC = () => {
   );
 };
 
-export default Conversations; 
+export default Conversations;

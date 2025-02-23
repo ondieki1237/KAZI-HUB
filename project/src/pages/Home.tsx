@@ -43,6 +43,15 @@ function Home() {
     navigate('/jobs');
   };
 
+  const handleChatClick = () => {
+    if (isAuthenticated) {
+      navigate('/messages');
+    } else {
+      toast.error('Please login to access chats');
+      navigate('/login');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -182,7 +191,10 @@ function Home() {
               <Briefcase className="h-6 w-6" />
               <span className="text-xs mt-1">Jobs</span>
             </button>
-            <button className="flex flex-col items-center text-gray-400">
+            <button 
+              onClick={handleChatClick}
+              className="flex flex-col items-center text-gray-400 hover:text-teal-dark"
+            >
               <MessageSquare className="h-6 w-6" />
               <span className="text-xs mt-1">Chats</span>
             </button>
