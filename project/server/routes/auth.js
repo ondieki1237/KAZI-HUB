@@ -13,6 +13,12 @@ const registerSchema = Joi.object({
       'string.max': 'Name cannot be longer than 30 characters',
       'any.required': 'Name is required'
     }),
+  username: Joi.string().min(3).max(30).required().lowercase()
+    .messages({
+      'string.min': 'Username must be at least 3 characters long',
+      'string.max': 'Username cannot be longer than 30 characters',
+      'any.required': 'Username is required'
+    }),
   email: Joi.string().email().required()
     .messages({
       'string.email': 'Please enter a valid email address',
@@ -55,30 +61,37 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: error.details[0].message });
     }
 
-    const { email, password, name, phone, role, location } = req.body;
+    const { email, password, name, phone, role, location, username } = req.body;
 
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
+    // Check if user exists (both email and username)
+    const existingUser = await User.findOne({ 
+      $or: [
+        { email },
+        { username }
+      ]
+    });
+    
     if (existingUser) {
-      return res.status(400).json({ message: 'Email is already registered' });
+      if (existingUser.email === email) {
+        return res.status(400).json({ message: 'Email is already registered' });
+      }
+      if (existingUser.username === username) {
+        return res.status(400).json({ message: 'Username is already taken' });
+      }
     }
 
-    // Create new user with addressString instead of location
+    // Create new user
     const user = new User({
       name,
+      username,
       email,
-      password, // Will be hashed by the pre-save middleware
+      password,
       phone,
       role,
-      addressString: location, // Map location to addressString
-      verified: false,
-      skills: [],
-      rating: 0,
-      completedJobs: 0
+      addressString: location
     });
 
     await user.save();
-    console.log('User saved successfully:', user._id);
 
     // Generate token
     const token = jwt.sign(

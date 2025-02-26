@@ -7,6 +7,13 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true
+  },
   email: {
     type: String,
     required: true,
@@ -70,7 +77,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Remove any existing indexes
+// Remove any existing indexes (if needed)
 userSchema.index({ location: 1 }, { background: true });
 
 // Hash password before saving

@@ -10,6 +10,7 @@ const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -180,6 +181,21 @@ const Register: React.FC = () => {
                   <option value="worker">Find Work</option>
                   <option value="employer">Hire Workers</option>
                 </select>
+              </div>
+
+              {/* Username Input */}
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  placeholder="Choose a username"
+                />
               </div>
 
               {/* Password Input */}

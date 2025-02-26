@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, DollarSign, Clock, Search, Filter } from 'lucide-react';
+import { MapPin, DollarSign, Clock, Search } from 'lucide-react';
 import { jobs } from '../services/api';
 import toast from 'react-hot-toast';
 import type { Job } from '../types';
@@ -14,6 +14,7 @@ const Jobs: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
+  const [displayedJobsCount, setDisplayedJobsCount] = useState(10); // Track how many jobs are displayed
 
   useEffect(() => {
     fetchJobs();
@@ -48,12 +49,17 @@ const Jobs: React.FC = () => {
       });
 
       setAllJobs(filteredJobs); // Update the jobs list with filtered results
+      setDisplayedJobsCount(10); // Reset displayed jobs count after search
     } catch (error) {
       console.error('Error searching jobs:', error);
       toast.error('Failed to search jobs');
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleLoadMore = () => {
+    setDisplayedJobsCount((prevCount) => prevCount + 5); // Increment displayed jobs by 5
   };
 
   if (loading) {
@@ -66,6 +72,8 @@ const Jobs: React.FC = () => {
       </div>
     );
   }
+
+  const jobsToDisplay = allJobs.slice(0, displayedJobsCount); // Slice the jobs to display
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -132,44 +140,58 @@ const Jobs: React.FC = () => {
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-dark"></div>
           </div>
-        ) : allJobs.length === 0 ? (
+        ) : jobsToDisplay.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No jobs found matching your criteria</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allJobs.map((job) => ( // Ensure all jobs are displayed
-              <div
-                key={job._id}
-                onClick={() => navigate(`/jobs/${job._id}`)}
-                className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-gray-800">{job.title}</h3>
-                    <div className="flex items-center text-gray-500 text-sm mt-4">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      <span>{job.locationArea}, {job.locationCity}</span>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {jobsToDisplay.map((job) => (
+                <div
+                  key={job._id}
+                  onClick={() => navigate(`/jobs/${job._id}`)}
+                  className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold text-gray-800">{job.title}</h3>
+                      <div className="flex items-center text-gray-500 text-sm mt-4">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span>{job.locationArea}, {job.locationCity}</span>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-sm">
+                      {job.category}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-4 flex items-center justify-between text-sm">
+                    <div className="flex items-center text-teal-dark">
+                      <DollarSign className="h-4 w-4 mr-1" />
+                      <span>KES {job.budget.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center text-gray-500">
+                      <Clock className="h-4 w-4 mr-1" />
+                      <span>{job.duration}</span>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-sm">
-                    {job.category}
-                  </span>
                 </div>
-                
-                <div className="mt-4 flex items-center justify-between text-sm">
-                  <div className="flex items-center text-teal-dark">
-                    <DollarSign className="h-4 w-4 mr-1" />
-                    <span>KES {job.budget.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center text-gray-500">
-                    <Clock className="h-4 w-4 mr-1" />
-                    <span>{job.duration}</span>
-                  </div>
-                </div>
+              ))}
+            </div>
+
+            {/* "More Jobs" Button */}
+            {displayedJobsCount < allJobs.length && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={handleLoadMore}
+                  className="px-6 py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors"
+                >
+                  More Jobs
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </main>
     </div>

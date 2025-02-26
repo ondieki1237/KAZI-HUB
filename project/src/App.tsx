@@ -16,6 +16,8 @@ import MyProfile from './pages/MyProfile';
 import Chat from './pages/Chat';
 import Conversations from './pages/Conversations';
 import ViewApplications from './pages/ViewApplications';
+import Settings from './pages/Settings';
+import Help from './pages/Help';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -39,6 +41,8 @@ function App() {
           <Route path="/messages" element={<Conversations />} />
           <Route path="/chat/:jobId/:userId" element={<Chat />} />
           <Route path="/jobs/:jobId/applications" element={<ViewApplications />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -30,7 +30,7 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
     },
     {
       icon: FileText,
-      label: 'My Posted Jobs',
+      label: 'Created Jobs',
       path: '/jobs/my-posted'
     },
     {
