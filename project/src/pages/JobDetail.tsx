@@ -21,24 +21,26 @@ import { Job } from '../types';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../contexts/AuthContext';
+import Footer from '../components/Footer';
 
 const JobDetail: React.FC = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState('');
   const [hasApplied, setHasApplied] = useState(false);
 
   useEffect(() => {
     console.log('Current auth state:', { 
-      isLoggedIn: !!user, 
-      user,
+      isLoggedIn: !!authUser, 
+      user: authUser,
       token: localStorage.getItem('token')
     });
-  }, [user]);
+  }, [authUser]);
 
   useEffect(() => {
     const fetchJobDetails = async () => {
@@ -54,6 +56,14 @@ const JobDetail: React.FC = () => {
           throw new Error('Invalid job data received');
         }
         setJob(response);
+        
+        // Check if user has already applied
+        if (authUser && response.applications) {
+          const userApplication = response.applications.find(
+            app => app.workerId === authUser.id
+          );
+          setHasApplied(!!userApplication);
+        }
       } catch (error: any) {
         console.error('Error fetching job details:', error);
         const errorMessage =
@@ -65,31 +75,19 @@ const JobDetail: React.FC = () => {
       }
     };
     fetchJobDetails();
-  }, [jobId]);
+  }, [jobId, authUser]);
 
-  useEffect(() => {
-    if (user && job) {
-      const userApplication = job.applications?.find(
-        app => app.workerId === user.id
-      );
-      setHasApplied(!!userApplication);
-      console.log('User application status:', {
-        hasApplied: !!userApplication,
-        userId: user.id,
-        applications: job.applications
-      });
-    }
-  }, [user, job]);
-
-  const handleApply = async () => {
-    console.log('Apply clicked, auth state:', {
-      user,
-      token: localStorage.getItem('token')
-    });
-
-    if (!user || !localStorage.getItem('token')) {
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!authUser) {
       toast.error('Please login to apply for jobs');
       navigate('/login');
+      return;
+    }
+
+    if (authUser.role !== 'worker') {
+      toast.error('Only workers can apply for jobs');
       return;
     }
 
@@ -100,24 +98,10 @@ const JobDetail: React.FC = () => {
 
     try {
       setApplying(true);
-
-      const applicationData = {
-        message: `I am interested in this job opportunity.`,
-        coverLetter: `Application from ${user.email}`
-      };
-
-      const response = await jobs.apply(job!._id, applicationData);
-      
-      if (response.message === 'Application submitted successfully') {
-        setHasApplied(true);
-        toast.success('Application submitted successfully!');
-        
-        // Refresh job details to update application count
-        const updatedJob = await jobs.getById(job!._id);
-        setJob(updatedJob);
-      } else {
-        throw new Error('Failed to submit application');
-      }
+      await jobs.applyForJob(jobId!, applicationMessage);
+      setHasApplied(true);
+      toast.success('Application submitted successfully!');
+      setApplicationMessage('');
     } catch (error: any) {
       console.error('Error applying for job:', error);
       toast.error(error.response?.data?.message || 'Failed to submit application');
@@ -268,36 +252,46 @@ const JobDetail: React.FC = () => {
               </div>
             )}
 
+            {/* Application Section */}
+            {authUser && authUser.role === 'worker' && !hasApplied && job.employerId._id !== authUser.id && (
+              <div className="p-6 border-t">
+                <h2 className="text-xl font-semibold mb-4">Apply for this Job</h2>
+                <form onSubmit={handleApply}>
+                  <textarea
+                    value={applicationMessage}
+                    onChange={(e) => setApplicationMessage(e.target.value)}
+                    placeholder="Write a message to the employer..."
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
+                    rows={4}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={applying || !applicationMessage.trim()}
+                    className={`mt-4 px-6 py-2 rounded-lg transition-colors ${
+                      applying || !applicationMessage.trim()
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-teal-dark hover:bg-teal-medium'
+                    } text-white`}
+                  >
+                    {applying ? 'Applying...' : 'Submit Application'}
+                  </button>
+                </form>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <button
-                onClick={handleApply}
-                disabled={applying || hasApplied || !user || job?.employerId?._id === user?.id}
-                className={`w-full sm:w-auto flex items-center justify-center px-6 py-2 rounded-lg transition-colors ${
-                  !user 
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : applying 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : hasApplied
-                    ? 'bg-green-700 cursor-not-allowed'
-                    : job?.employerId?._id === user?.id
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-500 hover:bg-green-600'
-                } text-white`}
-              >
-                <Briefcase className="h-5 w-5 mr-2" />
-                {!user 
-                  ? 'Login to Apply'
-                  : applying 
-                  ? 'Applying...' 
-                  : hasApplied 
-                  ? 'Applied' 
-                  : 'Apply Now'
-                }
-              </button>
+              {!authUser && (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="w-full sm:w-auto px-6 py-2 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors"
+                >
+                  Login to Apply
+                </button>
+              )}
 
-              {/* Contact button */}
-              {user && job?.employerId?._id !== user?.id && (
+              {authUser && job.employerId._id !== authUser.id && (
                 <button
                   onClick={() => navigate(`/chat/${job._id}/${job.employerId._id}`)}
                   className="w-full sm:w-auto flex items-center justify-center px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -306,10 +300,17 @@ const JobDetail: React.FC = () => {
                   Contact Employer
                 </button>
               )}
+
+              {hasApplied && (
+                <div className="text-green-600 font-medium">
+                  You have already applied for this job
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

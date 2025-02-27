@@ -28,7 +28,7 @@ const io = initializeSocket(server);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://your-production-domain.com' 
-    : 'http://localhost:5173',
+    : ['http://localhost:5173', 'http://192.168.1.157:5173'], // Allow both localhost and local network IP
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -104,7 +104,7 @@ if (process.env.NODE_ENV === 'production') {
 
   // Handle all other routes in development
   app.get('*', (req, res) => {
-    res.redirect('http://localhost:5173');
+    res.redirect('http://192.168.1.157:5173');
   });
 }
 
@@ -118,6 +118,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Access the backend API from another device using: http://192.168.1.157:${PORT}`);
 });

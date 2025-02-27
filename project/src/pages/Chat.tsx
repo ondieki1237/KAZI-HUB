@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { chat } from '../services/api';
-import PageHeader from '../components/PageHeader';
-import { Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Message {
@@ -126,47 +125,83 @@ const Chat: React.FC = () => {
     navigate(`/chat/${conversation.jobId}/${conversation.otherUser._id}`);
   };
 
+  // Styles
+  const styles = {
+    chatContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      padding: '10px',
+      maxWidth: '400px',
+      margin: 'auto',
+      border: '1px solid #ccc',
+      borderRadius: '10px',
+      backgroundColor: '#f9f9f9',
+    },
+    message: {
+      display: 'flex',
+      marginBottom: '10px',
+    },
+    messageContent: {
+      maxWidth: '70%',
+      padding: '10px',
+      borderRadius: '10px',
+      position: 'relative',
+    },
+    messageText: {
+      margin: '0',
+    },
+  };
+
   // Memoized message list with better sender/receiver differentiation
   const MessageList = useMemo(() => (
-    <div className="chat-messages h-[calc(100vh-300px)] overflow-y-auto p-4">
+    <div style={{ height: 'calc(100vh - 300px)', overflowY: 'auto', padding: '16px', backgroundColor: '#f9f9f9' }}>
       {loading ? (
-        <div className="flex justify-center items-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-dark"></div>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: '32px', width: '32px', borderBottom: '2px solid #2563eb' }}></div>
         </div>
       ) : messages.length === 0 ? (
-        <div className="text-center text-gray-500 mt-8">
-          No messages yet. Start the conversation!
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6b7280' }}>
+          <MessageSquare style={{ height: '48px', width: '48px', marginBottom: '8px' }} />
+          <p>No messages yet</p>
+          <p style={{ fontSize: '14px' }}>Start the conversation!</p>
         </div>
       ) : (
         messages.map((message) => {
           const isCurrentUser = message.senderId === user?.id;
+
           return (
             <div
               key={message._id}
-              className={`mb-4 flex ${
-                isCurrentUser ? 'justify-end' : 'justify-start'
-              }`}
+              style={{ display: 'flex', marginBottom: '16px', justifyContent: isCurrentUser ? 'flex-end' : 'flex-start' }}
             >
-              <div
-                className={`max-w-[70%] ${
-                  isCurrentUser ? 'order-2' : 'order-1'
-                }`}
-              >
+              <div style={{ maxWidth: '70%', display: 'flex', flexDirection: 'column', alignItems: isCurrentUser ? 'flex-end' : 'flex-start' }}>
                 <div
-                  className={`px-4 py-2 rounded-lg ${
-                    isCurrentUser
-                      ? 'bg-teal-dark text-white rounded-br-none'
-                      : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                  }`}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '16px',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                    backgroundColor: isCurrentUser ? '#008080' : '#ffffff',
+                    color: isCurrentUser ? '#ffffff' : '#000000',
+                    borderBottomRightRadius: isCurrentUser ? '0' : '16px',
+                    borderBottomLeftRadius: isCurrentUser ? '16px' : '0',
+                  }}
                 >
-                  <p className="break-words">{message.content}</p>
+                  {message.content}
                 </div>
                 <div
-                  className={`text-xs text-gray-500 mt-1 ${
-                    isCurrentUser ? 'text-right' : 'text-left'
-                  }`}
+                  style={{
+                    fontSize: '12px',
+                    color: '#6b7280',
+                    marginTop: '4px',
+                    textAlign: isCurrentUser ? 'right' : 'left',
+                    marginRight: isCurrentUser ? '8px' : '0',
+                    marginLeft: isCurrentUser ? '0' : '8px',
+                  }}
                 >
-                  {new Date(message.createdAt).toLocaleTimeString()}
+                  {new Date(message.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </div>
               </div>
             </div>
@@ -174,45 +209,48 @@ const Chat: React.FC = () => {
         })
       )}
     </div>
-  ), [loading, messages, user]);
+  ), [loading, messages, user?.id]);
 
   // Memoized conversation list with active chat highlighting
   const ConversationList = useMemo(() => (
-    <div className="w-1/3 bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="p-4 border-b">
-        <h2 className="font-semibold">Conversations</h2>
+    <div style={{ width: '33%', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', overflow: 'hidden' }}>
+      <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb' }}>
+        <h2 style={{ fontWeight: '600' }}>Conversations</h2>
       </div>
-      <div className="overflow-y-auto h-[calc(100vh-300px)]">
+      <div style={{ overflowY: 'auto', height: 'calc(100vh - 300px)' }}>
         {conversationsLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-dark"></div>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '128px' }}>
+            <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: '32px', width: '32px', borderBottom: '2px solid #2563eb' }}></div>
           </div>
         ) : conversations.length === 0 ? (
-          <div className="text-center text-gray-500 p-4">No conversations found</div>
+          <div style={{ textAlign: 'center', color: '#6b7280', padding: '16px' }}>No conversations found</div>
         ) : (
           conversations.map((conv) => (
             <div
               key={`${conv.jobId}-${conv.otherUser._id}`}
               onClick={() => handleConversationClick(conv)}
-              className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
-                conv.jobId === jobId && conv.otherUser._id === userId
-                  ? 'bg-teal-50 border-l-4 border-teal-dark'
-                  : ''
-              }`}
+              style={{
+                padding: '16px',
+                borderBottom: '1px solid #e5e7eb',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s',
+                backgroundColor: conv.jobId === jobId && conv.otherUser._id === userId ? '#f0f9ff' : 'transparent',
+                borderLeft: conv.jobId === jobId && conv.otherUser._id === userId ? '4px solid #008080' : 'none',
+              }}
             >
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-medium text-gray-800 truncate">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <h3 style={{ fontWeight: '500', color: '#1f2937', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                   {conv.jobTitle}
                 </h3>
-                <span className="text-xs text-gray-500">
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>
                   {new Date(conv.updatedAt).toLocaleDateString()}
                 </span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-gray-600">{conv.otherUser.name}</span>
-                <span className="text-xs text-gray-500">{conv.otherUser.email}</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '14px', color: '#4b5563' }}>{conv.otherUser.name}</span>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>{conv.otherUser.email}</span>
               </div>
-              <p className="text-sm text-gray-500 truncate mt-1">
+              <p style={{ fontSize: '14px', color: '#6b7280', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginTop: '4px' }}>
                 {conv.lastMessage}
               </p>
             </div>
@@ -223,43 +261,62 @@ const Chat: React.FC = () => {
   ), [conversations, conversationsLoading, jobId, userId]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader title="Chat" />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex gap-4 max-w-6xl mx-auto">
+    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
+      <main style={{ maxWidth: '1536px', margin: '0 auto', padding: '32px 16px' }}>
+        <div style={{ display: 'flex', gap: '16px', maxWidth: '1536px', margin: '0 auto' }}>
           {ConversationList}
-          <div className="w-2/3 bg-white rounded-lg shadow-md overflow-hidden">
+          <div style={{ width: '66%', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', overflow: 'hidden' }}>
             {otherUser && (
-              <div className="p-4 border-b bg-gray-50">
-                <div className="flex items-center justify-between">
+              <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <h3 className="font-medium text-gray-800">{otherUser.name}</h3>
-                    <p className="text-sm text-gray-500">{otherUser.email}</p>
+                    <h3 style={{ fontWeight: '500', color: '#1f2937' }}>{otherUser.name}</h3>
+                    <p style={{ fontSize: '14px', color: '#6b7280' }}>{otherUser.email}</p>
                   </div>
+                  <button
+                    onClick={() => navigate(-1)}
+                    style={{ padding: '8px', borderRadius: '50%', transition: 'background-color 0.2s', cursor: 'pointer' }}
+                  >
+                    <ArrowLeft style={{ height: '20px', width: '20px', color: '#4b5563' }} />
+                  </button>
                 </div>
               </div>
             )}
             {MessageList}
-            <form onSubmit={handleSendMessage} className="p-4 border-t">
-              <div className="flex gap-2">
+            <form onSubmit={handleSendMessage} style={{ padding: '16px', borderTop: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type your message..."
                   disabled={sending}
-                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-dark disabled:bg-gray-100"
+                  style={{
+                    flex: '1',
+                    padding: '8px 16px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    outline: 'none',
+                    focus: { ring: '2px', ringColor: '#008080' },
+                    disabled: { backgroundColor: '#f3f4f6' },
+                  }}
                 />
                 <button
                   type="submit"
                   disabled={sending || !newMessage.trim()}
-                  className={`px-6 py-2 rounded-lg transition-colors ${
-                    sending || !newMessage.trim()
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-teal-dark hover:bg-teal-medium'
-                  } text-white`}
+                  style={{
+                    padding: '8px 24px',
+                    borderRadius: '8px',
+                    transition: 'background-color 0.2s',
+                    backgroundColor: sending || !newMessage.trim() ? '#9ca3af' : '#008080',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: sending || !newMessage.trim() ? 'not-allowed' : 'pointer',
+                  }}
                 >
-                  <Send className="h-5 w-5" />
+                  <Send style={{ height: '20px', width: '20px' }} />
                 </button>
               </div>
             </form>

@@ -55,10 +55,10 @@ export const auth = {
         password: '[REDACTED]'
       });
       
-      const response = await api.post('/auth/register', userData);
+    const response = await api.post('/auth/register', userData);
       console.log('Registration response:', response.data);
       
-      return response.data;
+    return response.data;
     } catch (error: any) {
       console.error('Registration API error:', error.response?.data || error);
       throw error;
@@ -122,9 +122,9 @@ export const jobs = {
   apply: async (jobId: string, application: { message: string; coverLetter: string }) => {
     try {
       console.log('Applying for job:', jobId, 'with data:', application);
-      const response = await api.post(`/jobs/${jobId}/apply`, application);
+    const response = await api.post(`/jobs/${jobId}/apply`, application);
       console.log('Application response:', response.data);
-      return response.data;
+    return response.data;
     } catch (error) {
       console.error('Error applying for job:', error);
       throw error;
@@ -179,26 +179,24 @@ export const jobs = {
 export const profiles = {
   getMyProfile: async () => {
     try {
-      console.log('Fetching user profile');
       const response = await api.get('/users/my-profile');
-      console.log('Profile response:', response.data);
     return response.data;
     } catch (error) {
       console.error('Error fetching profile:', error);
       throw error;
     }
   },
-  updateProfile: async (profileData: Partial<User>) => {
+
+  updateProfile: async (profileData: Partial<UserProfile>) => {
     try {
-      console.log('Updating profile with data:', profileData);
-      const response = await api.put('/users/my-profile', profileData);
-      console.log('Profile update response:', response.data);
+      const response = await api.put(`/users/profile`, profileData);
     return response.data;
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
     }
   },
+
   uploadDocument: async (userId: string, file: File, type: VerificationDocument['type']) => {
     const formData = new FormData();
     formData.append('document', file);
@@ -234,7 +232,7 @@ export const chat = {
       console.log('Fetching messages for job:', jobId, 'with user:', userId);
       const response = await api.get(`/chats/${jobId}/messages/${userId}`);
       console.log('Messages response:', response.data);
-      return response.data;
+    return response.data;
     } catch (error) {
       console.error('Error fetching messages:', error);
       throw error;
@@ -246,7 +244,7 @@ export const chat = {
       console.log('Sending message:', { jobId, userId, content });
       const response = await api.post(`/chats/${jobId}/messages/${userId}`, { content });
       console.log('Send message response:', response.data);
-      return response.data;
+    return response.data;
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
@@ -256,7 +254,7 @@ export const chat = {
   getConversations: async () => {
     try {
       const response = await api.get('/chats/conversations');
-      return response.data;
+    return response.data;
     } catch (error) {
       console.error('Error fetching conversations:', error);
       throw error;
