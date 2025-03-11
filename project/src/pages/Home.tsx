@@ -7,15 +7,21 @@ import { jobs } from '../services/api';
 import { Job } from '../types';
 import toast from 'react-hot-toast';
 import Footer from '../components/Footer';
+import { useAuth } from '../contexts/AuthContext';
+import { chat } from '../services/api';
+import MessageNotification from '../components/MessageNotification';
+import io from 'socket.io-client';
 
 function Home() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || '{}'));
-  const isAuthenticated = !!user._id;
+  const { user } = useAuth();
+  const isAuthenticated = Boolean(user?.id || user?._id);
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [unreadMessages, setUnreadMessages] = useState<Message[]>([]);
+  const [socket, setSocket] = useState<any>(null);
 
   // Define job categories with keywords
   const jobCategories = {
@@ -30,9 +36,67 @@ function Home() {
   // Handle Logout
   const handleLogout = () => {
     localStorage.removeItem('user');
-    setUser({});
     toast.success('Logged out successfully');
     navigate('/login');
+  };
+
+  useEffect(() => {
+    if (user) {
+      // Connect to socket
+      const newSocket = io('http://localhost:5000');
+      setSocket(newSocket);
+
+      // Fetch initial unread messages
+      fetchUnreadMessages();
+
+      return () => {
+        newSocket.close();
+      };
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (socket && user) {
+      // Listen for new messages
+      socket.on('new_message', (message: Message) => {
+        if (message.recipientId._id === user.id && !message.read) {
+          setUnreadMessages(prev => [...prev, message]);
+          // Play notification sound
+          new Audio('/notification.mp3').play().catch(console.error);
+        }
+      });
+
+      return () => {
+        socket.off('new_message');
+      };
+    }
+  }, [socket, user]);
+
+  const fetchUnreadMessages = async () => {
+    try {
+      const conversations = await chat.getConversations();
+      const unread = conversations.reduce((acc: Message[], conv: any) => {
+        if (conv.unreadCount > 0) {
+          acc.push({
+            _id: conv._id,
+            jobId: conv.jobId,
+            jobTitle: conv.jobTitle,
+            senderId: conv.otherUser,
+            content: conv.lastMessage,
+            createdAt: conv.updatedAt,
+            read: false
+          });
+        }
+        return acc;
+      }, []);
+      setUnreadMessages(unread);
+    } catch (error) {
+      console.error('Error fetching unread messages:', error);
+    }
+  };
+
+  const handleMessageClose = async (messageId: string) => {
+    setUnreadMessages(prev => prev.filter(msg => msg._id !== messageId));
   };
 
   useEffect(() => {
@@ -60,8 +124,9 @@ function Home() {
   const handleViewAllJobs = () => navigate('/jobs');
   
   const handleChatClick = () => {
-    if (isAuthenticated) navigate('/messages');
-    else {
+    if (isAuthenticated) {
+      navigate('/messages');
+    } else {
       toast.error('Please login to access chats');
       navigate('/login');
     }
@@ -235,6 +300,14 @@ function Home() {
       </main>
 
       <Footer />
+
+      {/* Add the MessageNotification component in your header/navbar */}
+      <div className="fixed top-4 right-4 z-50">
+        <MessageNotification 
+          unreadMessages={unreadMessages}
+          onClose={handleMessageClose}
+        />
+      </div>
     </div>
   );
 }

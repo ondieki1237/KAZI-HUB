@@ -16,18 +16,7 @@ export interface Job {
   skillsRequired: string[];
   duration: string;
   createdAt: string;
-  applications: Array<{
-    _id: string;
-    workerId: string;
-    status: 'pending' | 'accepted' | 'rejected';
-    message: string;
-    createdAt: string;
-    worker?: {
-      _id: string;
-      name: string;
-      email: string;
-    };
-  }>;
+  applications?: Application[];
 }
 
 export interface JobApplication {
@@ -38,4 +27,15 @@ export interface JobApplication {
   message: string;
   coverLetter?: string;
   createdAt: string;
+}
+
+interface Application {
+  _id: string;
+  worker: {
+    _id: string;
+    name: string;
+    // ... other worker fields
+  };
+  status: 'pending' | 'accepted' | 'rejected';
+  // ... other application fields
 } 

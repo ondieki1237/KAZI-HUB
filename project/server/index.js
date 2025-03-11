@@ -60,14 +60,28 @@ app.use('/api/', limiter);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
   autoIndex: true,
-  maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
   family: 4
 })
-.then(() => console.log('✅ Connected to MongoDB'))
-.catch((err) => console.error('❌ MongoDB Connection Error:', err));
+.then(() => {
+  console.log('✅ Connected to MongoDB successfully');
+})
+.catch((err) => {
+  console.error('❌ MongoDB Connection Error:', err);
+});
+
+// Add MongoDB connection error handling
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.error('MongoDB disconnected');
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, MapPin, DollarSign, Clock, User } from 'lucide-react';
+import { Briefcase, MapPin, DollarSign, Clock, User, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { jobs } from '../services/api';
 import type { Job } from '../types';
@@ -33,6 +33,10 @@ const SeeMyPostedJobs: React.FC = () => {
 
   const handleViewApplications = (jobId: string) => {
     navigate(`/jobs/${jobId}/applications`);
+  };
+
+  const handleContactEmployee = (jobId: string, workerId: string) => {
+    navigate(`/chat/${jobId}/${workerId}`);
   };
 
   return (
@@ -111,12 +115,23 @@ const SeeMyPostedJobs: React.FC = () => {
                       {job.applications && job.applications.length > 0 ? (
                         <ul className="space-y-2">
                           {job.applications.slice(0, 3).map((application) => (
-                            <li key={application._id} className="flex items-center text-gray-600">
-                              <User className="h-4 w-4 mr-2" />
-                              <span>{application.worker?.name || 'Anonymous'}</span>
-                              <span className="ml-2 text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                                {application.status}
-                              </span>
+                            <li key={application._id} className="flex items-center justify-between text-gray-600">
+                              <div className="flex items-center">
+                                <User className="h-4 w-4 mr-2" />
+                                <span>{application.worker?.name || 'Anonymous'}</span>
+                                <span className="ml-2 text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                                  {application.status}
+                                </span>
+                              </div>
+                              {application.status === 'accepted' && (
+                                <button
+                                  onClick={() => handleContactEmployee(job._id, application.worker._id)}
+                                  className="flex items-center text-sm text-teal-600 hover:text-teal-700"
+                                >
+                                  <MessageSquare className="h-4 w-4 mr-1" />
+                                  Contact
+                                </button>
+                              )}
                             </li>
                           ))}
                           {job.applications.length > 3 && (

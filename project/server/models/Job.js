@@ -54,6 +54,10 @@ const jobSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  workerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   requirements: {
     isRemote: {
       type: Boolean,

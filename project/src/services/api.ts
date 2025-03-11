@@ -358,43 +358,55 @@ export const payments = {
 };
 
 export const chat = {
-  getMessages: async (jobId: string) => {
+  getMessages: async (jobId: string, userId: string) => {
     try {
-      const response = await api.get(`/chats/${jobId}`);
+      // Validate both jobId and userId
+      if (!jobId || !userId) {
+        throw new Error('Both Job ID and User ID are required');
+      }
+      const response = await api.get(`/chats/${jobId}?userId=${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching messages:', error);
       throw error;
     }
   },
-
-  sendMessage: async (jobId: string, content: string) => {
+  
+  sendMessage: async (jobId: string, content: string, userId: string) => {
     try {
-      const response = await api.post(`/chats/${jobId}`, { content });
+      if (!jobId || !content || !userId) {
+        throw new Error('JobId, content, and userId are required');
+      }
+      
+      const response = await api.post(`/chats/${jobId}`, { 
+        content,
+        recipientId: userId 
+      });
       return response.data;
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
     }
   },
-
+  
+  getUserDetails: async (userId: string) => {
+    try {
+      const response = await api.get(`/chats/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      throw error;
+    }
+  },
+  
   getConversations: async () => {
     try {
       const response = await api.get('/chats/conversations');
       return response.data;
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      throw error;
-    }
-  },
-
-  getUserDetails: async (userId: string) => {
-    try {
-      const response = await api.get(`/users/${userId}/details`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching user details:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 };
