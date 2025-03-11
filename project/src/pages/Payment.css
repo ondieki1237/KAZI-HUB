@@ -1,0 +1,197 @@
+/* Payment.css */
+.payment-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0d9488, #5eead4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  
+  .payment-container {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .payment-title {
+    color: #0d9488;
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  
+  .payment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .form-label {
+    color: #115e59;
+    font-weight: 500;
+    font-size: 1.1rem;
+  }
+  
+  .input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .currency-symbol {
+    position: absolute;
+    left: 12px;
+    color: #14b8a6;
+    font-size: 1.2rem;
+  }
+  
+  .amount-input {
+    width: 100%;
+    padding: 12px 16px 12px 36px;
+    border: 2px solid #99f6e4;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    color: #115e59;
+    transition: border-color 0.3s;
+  }
+  
+  .amount-input:focus {
+    outline: none;
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
+  }
+  
+  .amount-input::placeholder {
+    color: #99f6e4;
+  }
+  
+  .rating-stars {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .star-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  
+  .star-icon {
+    width: 32px;
+    height: 32px;
+    fill: #d1fae5;
+    transition: fill 0.2s ease-in-out;
+  }
+  
+  .star-icon.filled {
+    fill: #14b8a6;
+  }
+  
+  .submit-button {
+    background-color: #059669;
+    color: white;
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+  }
+  
+  .submit-button:hover:not(:disabled) {
+    background-color: #047857;
+  }
+  
+  .submit-button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
+  
+  .amount-display {
+    margin-bottom: 1.5rem;
+  }
+  
+  .fixed-amount {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background-color: #f3f4f6;
+    border-radius: 0.5rem;
+    font-size: 1.25rem;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .currency-symbol {
+    margin-right: 0.5rem;
+    color: #6b7280;
+    font-weight: 500;
+  }
+  
+  .amount {
+    font-weight: 600;
+    color: #059669;
+  }
+
+  .payment-card {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+  }
+  
+  .job-details {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .payment-card {
+      margin: 1rem;
+      padding: 1rem;
+    }
+    
+    .stars {
+      justify-content: center;
+    }
+  }
+
+  .star-button:focus {
+    outline: none;
+  }
+
+  .star {
+    width: 2rem;
+    height: 2rem;
+    fill: #d1d5db;
+    transition: fill 0.2s ease;
+  }
+
+  .star.filled {
+    fill: #fbbf24;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }

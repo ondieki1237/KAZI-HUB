@@ -1,0 +1,63 @@
+.skill-form {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.toggle-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.toggle-button {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.toggle-button.active {
+  border-color: #0d9488;
+  background: #0d9488;
+  color: white;
+}
+
+.file-upload {
+  border: 2px dashed #e5e7eb;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.file-upload:hover {
+  border-color: #0d9488;
+}
+
+.preview-files {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.preview-file {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+} 
