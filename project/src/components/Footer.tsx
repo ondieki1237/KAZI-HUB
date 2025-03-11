@@ -6,7 +6,7 @@ const Footer: React.FC = () => {
   const navigate = useNavigate();
   
   return (
-    <footer className="sticky bottom-0 w-full bg-gradient-to-r from-teal-800 to-teal-600 text-white">
+    <footer className="w-full bg-gradient-to-r from-teal-800 to-teal-600 text-white">
       <div className="container mx-auto px-6 py-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
           {/* About Section */}

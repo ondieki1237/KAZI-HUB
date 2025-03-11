@@ -79,7 +79,6 @@ const AppliedJobs: React.FC = () => {
     completed: [],
     rejected: []
   });
-  const [historyLoading, setHistoryLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('applications');
 
   useEffect(() => {
@@ -260,10 +259,10 @@ const AppliedJobs: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <PageHeader title="My Job Applications" />
       
-      <main className="container mx-auto px-4 py-8">
+      <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-8 flex justify-center gap-4">
           {['pending', 'accepted', 'completed', 'rejected'].map((status) => (
             <button
