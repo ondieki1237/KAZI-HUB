@@ -46,13 +46,29 @@ const ViewApplications: React.FC = () => {
 
   const handleStatusChange = async (applicationId: string, newStatus: 'accepted' | 'rejected') => {
     try {
-      await jobs.updateApplicationStatus(jobId!, applicationId, newStatus);
-      const updatedJob = await jobs.getJobApplications(jobId!);
+      // First validate the IDs
+      if (!jobId || !applicationId) {
+        toast.error('Missing required information');
+        return;
+      }
+
+      // Show loading toast
+      const loadingToast = toast.loading(`${newStatus === 'accepted' ? 'Accepting' : 'Rejecting'} application...`);
+
+      // Update the application status
+      await jobs.updateApplicationStatus(jobId, applicationId, newStatus);
+
+      // Fetch updated job data
+      const updatedJob = await jobs.getJobApplications(jobId);
       setJob(updatedJob);
+
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
       toast.success(`Application ${newStatus} successfully`);
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Error updating application status:', error);
-      toast.error('Failed to update application status');
+      toast.error(error.response?.data?.message || 'Failed to update application status');
     }
   };
 

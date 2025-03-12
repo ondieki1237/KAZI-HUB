@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface User {
-  id: string;
+  id?: string;
+  _id?: string;
   email: string;
   role: string;
 }
@@ -19,7 +20,13 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      console.error('Error parsing saved user:', error);
+      localStorage.removeItem('user');
+      return null;
+    }
   });
 
   useEffect(() => {

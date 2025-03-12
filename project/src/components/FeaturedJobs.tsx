@@ -5,27 +5,43 @@ import { Job } from '../types';
 import toast from 'react-hot-toast';
 
 function FeaturedJobs() {
-  const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]); // Store all fetched jobs
+  const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]); // Displayed jobs
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sliceLimit, setSliceLimit] = useState(5); // Default to 5 for mobile
 
+  // Update slice limit based on viewport width
+  const updateSliceLimit = () => {
+    const isDesktop = window.innerWidth >= 768; // Tailwind 'md' breakpoint
+    setSliceLimit(isDesktop ? 10 : 5);
+    console.log('Slice limit updated to:', isDesktop ? 10 : 5);
+  };
+
+  // Set initial slice limit and listen for resize
+  useEffect(() => {
+    updateSliceLimit(); // Set on mount
+    window.addEventListener('resize', updateSliceLimit);
+    return () => window.removeEventListener('resize', updateSliceLimit);
+  }, []);
+
+  // Fetch all featured jobs once
   useEffect(() => {
     const fetchFeaturedJobs = async () => {
       try {
+        setLoading(true);
         const response = await jobs.getFeatured();
         console.log('Featured jobs response:', response);
 
-        // Handle different possible response structures
         const jobsData = Array.isArray(response) ? response : response.data || [];
         console.log('Processed jobs data:', jobsData);
 
         if (!jobsData.length) {
           console.warn('No jobs found in response');
+          setAllJobs([]);
           setFeaturedJobs([]);
         } else {
-          const slicedJobs = jobsData.slice(0, 5);
-          console.log('Sliced featured jobs:', slicedJobs);
-          setFeaturedJobs(slicedJobs);
+          setAllJobs(jobsData); // Store all jobs
         }
         setError(null);
       } catch (error) {
@@ -38,21 +54,28 @@ function FeaturedJobs() {
     };
 
     fetchFeaturedJobs();
-  }, []);
+  }, []); // Run once on mount
+
+  // Update displayed jobs when sliceLimit or allJobs changes
+  useEffect(() => {
+    if (allJobs.length > 0) {
+      const slicedJobs = allJobs.slice(0, sliceLimit);
+      console.log('Sliced jobs for display:', slicedJobs);
+      setFeaturedJobs(slicedJobs);
+    }
+  }, [allJobs, sliceLimit]);
 
   if (loading) {
     return (
       <div className="flex justify-center items-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-dark"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-4 text-red-600">
-        {error}
-      </div>
+      <div className="text-center py-4 text-red-600">{error}</div>
     );
   }
 
@@ -65,34 +88,35 @@ function FeaturedJobs() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {featuredJobs.map((job) => (
         <div
           key={job._id}
-          className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow"
+          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border border-gray-100"
         >
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="font-semibold text-gray-800">{job.title}</h3>
+              <h3 className="font-semibold text-xl text-gray-800 hover:text-teal-600 transition-colors">
+                {job.title}
+              </h3>
               <div className="flex items-center text-gray-500 text-sm mt-2">
-                <MapPin className="h-4 w-4 mr-1" />
+                <MapPin className="h-4 w-4 mr-2" />
                 <span>{job.location}</span>
               </div>
             </div>
             {job.status === 'open' && (
-              <span className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
+              <span className="px-3 py-1 bg-green-100 text-green-600 text-sm rounded-full font-medium">
                 Open
               </span>
             )}
           </div>
-          
-          <div className="flex items-center justify-between mt-4">
-            <div className="flex items-center text-teal-dark">
-              <DollarSign className="h-4 w-4 mr-1" />
-              <span className="font-semibold">KES {job.budget.toLocaleString()}</span>
+          <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center text-teal-700">
+              <DollarSign className="h-5 w-5 mr-2" />
+              <span className="font-semibold text-lg">KES {job.budget.toLocaleString()}</span>
             </div>
             <div className="flex items-center text-gray-500 text-sm">
-              <Clock className="h-4 w-4 mr-1" />
+              <Clock className="h-4 w-4 mr-2" />
               <span>{new Date(job.createdAt).toLocaleDateString()}</span>
             </div>
           </div>

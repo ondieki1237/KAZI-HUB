@@ -47,8 +47,14 @@ export const auth = {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data;
       
+      // Ensure we store both id and _id if available
+      const userToStore = {
+        ...user,
+        id: user.id || user._id, // Ensure we have at least one ID
+      };
+      
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(userToStore));
       
       if (email === 'admin@gmail.com') {
         window.location.href = '/admin';
@@ -180,10 +186,15 @@ export const jobs = {
       throw error;
     }
   },
-  updateApplicationStatus: async (applicationId: string, status: 'accepted' | 'rejected') => {
+  updateApplicationStatus: async (jobId: string, applicationId: string, status: 'accepted' | 'rejected') => {
     try {
-      const response = await api.patch(`/jobs/applications/${applicationId}/status`, { status });
-      console.log('Application status updated:', response.data);
+      console.log('Updating application status:', { jobId, applicationId, status });
+      
+      const response = await api.patch(`/jobs/${jobId}/applications/${applicationId}`, { 
+        status 
+      });
+      
+      console.log('Status update response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error updating application status:', error);
@@ -206,32 +217,10 @@ export const jobs = {
   },
   getMyApplications: async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (!user._id) {
-        throw new Error('User not authenticated');
-      }
-
-      const userId = user._id.toString();
-      console.log('Fetching applications for user:', userId); // Debug log
-
-      const response = await api.get(`/jobs/applications/user/${userId}`);
-      console.log('Applications response:', response.data); // Debug log
-      
+      const response = await api.get('/jobs/applications/my');
       return response.data;
-    } catch (error: any) {
-      console.error('Error fetching applications:', error);
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      } else if (error.request) {
-        // The request was made but no response was received
-        console.error('No response received:', error.request);
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.error('Error setting up request:', error.message);
-      }
+    } catch (error) {
+      console.error('Error fetching my applications:', error);
       throw error;
     }
   },

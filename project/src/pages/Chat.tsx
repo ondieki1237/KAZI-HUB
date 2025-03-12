@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { chat } from '../services/api';
@@ -30,24 +30,42 @@ const Chat: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [recipientDetails, setRecipientDetails] = useState<{ name: string; email: string } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch messages
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!jobId || !userId || !user) return;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const fetchMessages = useCallback(async (silent = false) => {
+    if (!jobId || !userId || !user) return;
+    
+    try {
+      if (!silent) setLoading(true);
+      if (silent) setIsRefreshing(true);
       
-      try {
-        setLoading(true);
-        const response = await chat.getMessages(jobId, userId);
-        setMessages(response);
-      } catch (error: any) {
+      const response = await chat.getMessages(jobId, userId);
+      setMessages(response);
+      
+      if (!silent) scrollToBottom();
+    } catch (error: any) {
+      if (!silent) {
         toast.error(error.response?.data?.message || 'Failed to load messages');
-      } finally {
-        setLoading(false);
       }
-    };
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [jobId, userId, user]);
 
-    // Fetch recipient details
+  useEffect(() => {
+    fetchMessages();
+    const interval = setInterval(() => fetchMessages(true), 3000);
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
+
+  // Fetch recipient details
+  useEffect(() => {
     const fetchRecipientDetails = async () => {
       if (!userId) return;
       try {
@@ -58,13 +76,8 @@ const Chat: React.FC = () => {
       }
     };
 
-    fetchMessages();
     fetchRecipientDetails();
-
-    // Poll for new messages every 3 seconds
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, [jobId, userId, user]);
+  }, [userId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,32 +126,35 @@ const Chat: React.FC = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message._id}
-              className={`flex ${message.senderId._id === user?.id ? 'justify-end' : 'justify-start'} mb-4`}
-            >
+          <>
+            {messages.map((message) => (
               <div
-                className={`max-w-[70%] rounded-lg p-3 ${
-                  message.senderId._id === user?.id 
-                    ? 'bg-teal-500 text-white' 
-                    : 'bg-gray-200'
-                }`}
+                key={message._id}
+                className={`flex ${message.senderId._id === user?.id ? 'justify-end' : 'justify-start'} mb-4`}
               >
-                <p className="text-sm">{message.content}</p>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs opacity-75">
-                    {new Date(message.createdAt).toLocaleTimeString()}
-                  </span>
-                  {message.senderId._id === user?.id && (
-                    <span className="text-xs ml-2">
-                      {message.read ? '✓✓' : '✓'}
+                <div
+                  className={`max-w-[70%] rounded-lg p-3 ${
+                    message.senderId._id === user?.id 
+                      ? 'bg-teal-500 text-white' 
+                      : 'bg-gray-200'
+                  }`}
+                >
+                  <p className="text-sm">{message.content}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs opacity-75">
+                      {new Date(message.createdAt).toLocaleTimeString()}
                     </span>
-                  )}
+                    {message.senderId._id === user?.id && (
+                      <span className="text-xs ml-2">
+                        {message.read ? '✓✓' : '✓'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+            <div ref={messagesEndRef} />
+          </>
         )}
       </div>
 
@@ -165,6 +181,14 @@ const Chat: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Refresh Indicator */}
+      {isRefreshing && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-teal-600 text-white px-3 py-1 rounded-full text-sm shadow-lg flex items-center">
+          <div className="animate-spin rounded-full h-3 w-3 border-2 border-white mr-2"></div>
+          Updating...
+        </div>
+      )}
     </div>
   );
 };
