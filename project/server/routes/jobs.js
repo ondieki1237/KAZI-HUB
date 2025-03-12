@@ -272,6 +272,47 @@ router.get('/history/user/:userId', verifyToken, async (req, res) => {
   }
 });
 
+// Get my applications
+router.get('/applications/my', verifyToken, async (req, res) => {
+  try {
+    const applications = await Job.find({
+      'applications.workerId': req.user.id
+    })
+    .select('title description locationArea locationCity budget status employerId applications')
+    .populate('employerId', 'name email')
+    .lean();
+
+    // Filter and format applications for the current user
+    const myApplications = applications.flatMap(job => {
+      const userApplications = job.applications.filter(
+        app => app.workerId.toString() === req.user.id
+      );
+      
+      return userApplications.map(app => ({
+        _id: app._id,
+        jobId: {
+          _id: job._id,
+          title: job.title,
+          description: job.description,
+          locationArea: job.locationArea,
+          locationCity: job.locationCity,
+          budget: job.budget,
+          status: job.status,
+          employerId: job.employerId
+        },
+        status: app.status,
+        appliedAt: app.appliedAt,
+        message: app.message
+      }));
+    });
+
+    res.json(myApplications);
+  } catch (error) {
+    console.error('Error fetching my applications:', error);
+    res.status(500).json({ message: 'Error fetching applications' });
+  }
+});
+
 // Protected routes
 router.use(verifyToken); // Apply authentication middleware to all routes below this
 
@@ -385,45 +426,48 @@ router.patch('/:id/status', async (req, res) => {
 });
 
 // Update application status
-router.patch('/applications/:applicationId/status', verifyToken, async (req, res) => {
+router.patch('/:jobId/applications/:applicationId', verifyToken, async (req, res) => {
   try {
-    const { applicationId } = req.params;
+    const { jobId, applicationId } = req.params;
     const { status } = req.body;
+    const userId = req.user.id;
 
+    // Validate status
     if (!['accepted', 'rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const application = await JobApplication.findById(applicationId)
-      .populate('jobId');
+    // Find the job and verify ownership
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
 
+    if (job.employerId.toString() !== userId) {
+      return res.status(403).json({ message: 'Not authorized to update this job' });
+    }
+
+    // Find and update the application
+    const application = job.applications.id(applicationId);
     if (!application) {
       return res.status(404).json({ message: 'Application not found' });
     }
 
-    // Verify that the user is the employer of this job
-    if (application.jobId.employerId.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Not authorized to update this application' });
-    }
-
+    // Update the application status
     application.status = status;
-    await application.save();
+    await job.save();
 
-    // Create notification for worker
-    await Notification.create({
-      userId: application.workerId,
-      type: 'applicationUpdate',
-      message: `Your application has been ${status}`,
-      relatedId: application.jobId._id
+    // Send notification to the applicant
+    // You can implement this part based on your notification system
+
+    res.json({ 
+      message: `Application ${status} successfully`,
+      job
     });
 
-    res.json(application);
   } catch (error) {
     console.error('Error updating application status:', error);
-    res.status(500).json({ 
-      message: 'Error updating application status',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Error updating application status' });
   }
 });
 
