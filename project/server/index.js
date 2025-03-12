@@ -15,6 +15,7 @@ import { verifyToken } from './middleware/auth.js';
 import skillRoutes from './routes/skills.js';
 import adminRoutes from './routes/admin.js';
 import paymentRoutes from './routes/payments.js';
+import cvRoutes from './routes/cv.js';
 
 dotenv.config();
 
@@ -92,6 +93,7 @@ app.use('/api/chats', verifyToken, chatRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/cv-maker', cvRoutes);
 
 // Serve Static Files in Production
 if (process.env.NODE_ENV === 'production') {

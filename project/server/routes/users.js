@@ -1,8 +1,33 @@
 import express from 'express';
 import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
+import multer from 'multer';
+import path from 'path';
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: 'uploads/avatars/',
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only .png, .jpg and .jpeg format allowed!'));
+  }
+});
 
 // Get user profile
 router.get('/:id', async (req, res) => {
@@ -20,20 +45,51 @@ router.get('/:id', async (req, res) => {
 // Get current user's profile
 router.get('/my-profile', verifyToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    console.log('Fetching profile with user ID:', req.user.id);
+    
+    const user = await User.findById(req.user.id)
+      .select('-password')
+      .lean();
+
+    if (!user) {
+      console.log('No user found for ID:', req.user.id);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Log the found user (without sensitive data)
+    const userToLog = { ...user };
+    delete userToLog.password;
+    console.log('Found user:', userToLog);
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error in /my-profile:', error);
+    res.status(500).json({ message: 'Error fetching profile' });
+  }
+});
+
+// Get user profile
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select('-password')
+      .lean();
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching profile', error: error.message });
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Error fetching profile' });
   }
 });
 
 // Update user profile
-router.put('/profile', verifyToken, async (req, res) => {
+router.patch('/profile', verifyToken, async (req, res) => {
   try {
-    const { name, email, phone, addressString, bio } = req.body;
+    const { name, phone, location, bio, skills } = req.body;
     
     // Find user and update
     const user = await User.findById(req.user.id);
@@ -41,43 +97,68 @@ router.put('/profile', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if email is being changed and if it's already taken
-    if (email !== user.email) {
-      const emailExists = await User.findOne({ email });
-      if (emailExists) {
-        return res.status(400).json({ message: 'Email already in use' });
-      }
+    // Update only allowed fields
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (location) user.location = location;
+    if (bio !== undefined) user.bio = bio;
+    if (skills) user.skills = skills;
+
+    await user.save();
+
+    // Return updated user without password
+    const updatedUser = await User.findById(req.user.id)
+      .select('-password')
+      .lean();
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'Error updating profile' });
+  }
+});
+
+// Upload avatar
+router.post('/profile/avatar', verifyToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Update user fields
-    user.name = name || user.name;
-    user.email = email || user.email;
-    user.phone = phone || user.phone;
-    user.addressString = addressString || user.addressString;
-    user.bio = bio || user.bio;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
-    // Save updated user
-    const updatedUser = await user.save();
-    
-    // Remove password from response
-    const userResponse = updatedUser.toObject();
-    delete userResponse.password;
+    // Update avatar URL
+    user.avatar = `/uploads/avatars/${req.file.filename}`;
+    await user.save();
 
-    res.json(userResponse);
+    res.json({ avatar: user.avatar });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating profile', error: error.message });
+    console.error('Error uploading avatar:', error);
+    res.status(500).json({ message: 'Error uploading avatar' });
+  }
+});
+
+// Get user documents
+router.get('/:userId/documents', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user.documents);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching documents' });
   }
 });
 
 // Upload document
-router.post('/:id/documents', async (req, res) => {
+router.post('/:userId/documents', verifyToken, upload.single('document'), async (req, res) => {
   try {
-    // Only allow users to upload to their own profile
-    if (req.params.id !== req.user.id) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -87,13 +168,14 @@ router.post('/:id/documents', async (req, res) => {
     user.documents.push({
       type: req.body.type,
       url: 'placeholder-url', // Replace with actual upload URL
-      status: 'pending'
+      name: req.file.originalname,
+      uploadedAt: new Date()
     });
 
     await user.save();
-    res.status(201).json(user);
+    res.status(201).json(user.documents[user.documents.length - 1]);
   } catch (error) {
-    res.status(500).json({ message: 'Error uploading document', error: error.message });
+    res.status(500).json({ message: 'Error uploading document' });
   }
 });
 

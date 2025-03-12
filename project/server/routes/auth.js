@@ -124,41 +124,44 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
+    
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check password
+    // Verify password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Generate token with additional admin check
+    // Create token with user ID
     const token = jwt.sign(
       { 
-        id: user._id, 
-        role: user.role,
-        email: user.email,
-        isAdmin: user.role === 'admin'
-      },
+        userId: user._id.toString() // Ensure userId is included
+      }, 
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: '24h' }
     );
 
-    // Remove password from response
+    console.log('Generated token for user:', {
+      userId: user._id,
+      tokenPreview: token.substring(0, 20) + '...'
+    });
+
+    // Send response without password
     const userResponse = user.toObject();
     delete userResponse.password;
 
     res.json({
       token,
-      user: userResponse,
+      user: userResponse
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error logging in', error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Error logging in' });
   }
 });
 

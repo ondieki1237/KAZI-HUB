@@ -5,32 +5,40 @@ import jwt from 'jsonwebtoken';
  * Extracts the token from the Authorization header, verifies it, and attaches the decoded user data to `req.user`.
  */
 export const verifyToken = (req, res, next) => {
-  // Get the authorization header
-  const authHeader = req.headers.authorization;
-
-  // Check if the authorization header exists
-  if (!authHeader) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
-
-  // Extract the token from the header
-  const token = authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Invalid token format' });
-  }
-
   try {
-    // Verify the token using the JWT_SECRET
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      console.log('No auth header provided');
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1]; // Bearer <token>
+    
+    if (!token) {
+      console.log('No token in auth header');
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!decoded.userId) {
+      console.log('No userId in token payload:', decoded);
+      return res.status(401).json({ message: 'Invalid token format' });
+    }
 
-    // Attach the decoded user data to the request object
-    req.user = decoded;
-
-    // Proceed to the next middleware or route handler
+    req.user = { id: decoded.userId };
+    console.log('Token verified successfully for user:', decoded.userId);
+    
     next();
   } catch (error) {
-    // If the token is invalid or expired, return an error
-    return res.status(401).json({ message: 'Invalid token' });
+    console.error('Auth middleware error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expired' });
+    }
+    return res.status(401).json({ message: 'Authentication failed' });
   }
 };
