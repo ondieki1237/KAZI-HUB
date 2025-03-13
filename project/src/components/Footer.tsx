@@ -10,17 +10,17 @@ const Footer: React.FC = () => {
       <div className="container mx-auto px-6 py-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
           {/* About Section */}
-          <div className="space-y-4">
+          <div className="space-y-4 text-center">
             <h3 className="text-xl md:text-2xl font-bold">About BlueCollar</h3>
-            <p className="text-sm md:text-base text-gray-200 leading-relaxed max-w-xs">
+            <p className="text-sm md:text-base text-gray-200 leading-relaxed max-w-xs mx-auto">
               BlueCollar connects skilled workers with job opportunities, empowering communities and driving economic growth.
             </p>
           </div>
 
           {/* Quick Links */}
-          <div className="space-y-4">
+          <div className="space-y-4 text-center">
             <h3 className="text-xl md:text-2xl font-bold">Quick Links</h3>
-            <ul className="space-y-3">
+            <ul className="space-y-3 flex flex-col items-center">
               <li>
                 <button 
                   onClick={() => navigate('/jobs')} 
@@ -57,9 +57,9 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Contact Info */}
-          <div className="space-y-4">
+          <div className="space-y-4 text-center">
             <h3 className="text-xl md:text-2xl font-bold">Contact Us</h3>
-            <ul className="space-y-4">
+            <ul className="space-y-4 flex flex-col items-center">
               <li className="flex items-center space-x-3">
                 <Mail className="h-5 w-5 flex-shrink-0" />
                 <span className="text-sm md:text-base text-gray-200 break-all">
@@ -76,9 +76,9 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Social Media */}
-          <div className="space-y-4">
+          <div className="space-y-4 text-center">
             <h3 className="text-xl md:text-2xl font-bold">Follow Us</h3>
-            <div className="flex space-x-6">
+            <div className="flex space-x-6 justify-center">
               <a 
                 href="https://facebook.com" 
                 className="text-gray-200 hover:text-white transition-colors duration-200"
