@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Briefcase, MessageSquare, Bell, MapPin, DollarSign, Clock, Flame } from 'lucide-react';
+import { Search, Briefcase, Bell, MapPin, DollarSign, Clock, Flame } from 'lucide-react';
 import Menu from '../components/Menu';
 import { useNavigate } from 'react-router-dom';
 import { jobs, chat } from '../services/api';
@@ -7,7 +7,6 @@ import { Job, Message } from '../types';
 import toast from 'react-hot-toast';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
-import MessageNotification from '../components/MessageNotification';
 import io from 'socket.io-client';
 
 function Home() {
@@ -17,7 +16,7 @@ function Home() {
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [unreadMessages, setUnreadMessages] = useState<Message[]>([]);
+  const [notifications, setNotifications] = useState<(Message | { type: 'jobAccepted'; jobId: string; jobTitle: string })[]>([]);
   const [socket, setSocket] = useState<any>(null);
 
   const jobCategories = {
@@ -48,11 +47,23 @@ function Home() {
     if (socket && user) {
       socket.on('new_message', (message: Message) => {
         if (message.recipientId._id === user.id && !message.read) {
-          setUnreadMessages(prev => [...prev, message]);
+          setNotifications(prev => [...prev, message]);
           new Audio('/notification.mp3').play().catch(console.error);
         }
       });
-      return () => socket.off('new_message');
+
+      socket.on('application_status_updated', (data: { jobId: string; jobTitle: string; workerId: string; status: 'accepted' | 'rejected' }) => {
+        if (data.workerId === user.id && data.status === 'accepted') {
+          setNotifications(prev => [...prev, { type: 'jobAccepted', jobId: data.jobId, jobTitle: data.jobTitle }]);
+          new Audio('/notification.mp3').play().catch(console.error);
+          toast.success(`You've been accepted for ${data.jobTitle}!`);
+        }
+      });
+
+      return () => {
+        socket.off('new_message');
+        socket.off('application_status_updated');
+      };
     }
   }, [socket, user]);
 
@@ -73,14 +84,14 @@ function Home() {
         }
         return acc;
       }, []);
-      setUnreadMessages(unread);
+      setNotifications(prev => [...prev, ...unread]);
     } catch (error) {
       console.error('Error fetching unread messages:', error);
     }
   };
 
-  const handleMessageClose = async (messageId: string) => {
-    setUnreadMessages(prev => prev.filter(msg => msg._id !== messageId));
+  const handleNotificationClose = async (notificationId: string) => {
+    setNotifications(prev => prev.filter(notif => (notif as Message)._id !== notificationId));
   };
 
   useEffect(() => {
@@ -101,10 +112,10 @@ function Home() {
 
   const handleCategoryClick = (category: string) => setSelectedCategory(category);
   const handleViewAllJobs = () => navigate('/jobs');
-  const handleChatClick = () => {
-    if (isAuthenticated) navigate('/messages');
+  const handleBellClick = () => {
+    if (isAuthenticated) navigate('/notifications');
     else {
-      toast.error('Please login to access chats');
+      toast.error('Please login to view notifications');
       navigate('/login');
     }
   };
@@ -121,13 +132,17 @@ function Home() {
             </div>
             <div className="flex items-center space-x-6">
               {isAuthenticated ? (
-                <>
-                  <Bell className="h-6 w-6 cursor-pointer hover:text-teal-200 transition-colors" />
-                  <MessageSquare
+                <div className="relative">
+                  <Bell
                     className="h-6 w-6 cursor-pointer hover:text-teal-200 transition-colors"
-                    onClick={handleChatClick}
+                    onClick={handleBellClick}
                   />
-                </>
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {notifications.length}
+                    </span>
+                  )}
+                </div>
               ) : (
                 <button
                   onClick={() => navigate('/login')}
@@ -291,9 +306,44 @@ function Home() {
 
       <Footer />
 
-      {/* Message Notification */}
+      {/* Notification Panel */}
       <div className="fixed top-6 right-6 z-50">
-        <MessageNotification unreadMessages={unreadMessages} onClose={handleMessageClose} />
+        {notifications.map((notification, index) => (
+          <div
+            key={index}
+            className="bg-white rounded-lg shadow-lg p-4 mb-2 border border-gray-200 max-w-sm"
+          >
+            {'type' in notification && notification.type === 'jobAccepted' ? (
+              <div>
+                <p className="text-gray-800 font-semibold">Job Acceptance</p>
+                <p className="text-gray-600">You've been accepted for "{notification.jobTitle}"!</p>
+                <button
+                  onClick={() => navigate(`/jobs/${notification.jobId}`)}
+                  className="text-teal-600 hover:text-teal-700 text-sm mt-2"
+                >
+                  View Job
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p className="text-gray-800 font-semibold">New Message</p>
+                <p className="text-gray-600">{(notification as Message).content}</p>
+                <button
+                  onClick={() => navigate(`/chat/${(notification as Message).jobId}/${(notification as Message).senderId}`)}
+                  className="text-teal-600 hover:text-teal-700 text-sm mt-2"
+                >
+                  View Message
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => handleNotificationClose((notification as Message)._id || index.toString())}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              ×
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
