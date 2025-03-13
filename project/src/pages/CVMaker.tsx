@@ -86,43 +86,53 @@ const CVMaker: React.FC = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Convert dates to string format (MM/YYYY) for submission
-    const formattedData = {
-      ...formData,
-      experience: formData.experience.map(exp => ({
-        ...exp,
-        startDate: exp.startDate ? exp.startDate.toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' }) : '',
-        endDate: exp.endDate ? exp.endDate.toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' }) : ''
-      }))
-    };
-
     try {
-      const response = await fetch('http://192.168.1.157:5000/api/cv-maker/generate', {
+      // Format dates for submission
+      const formattedData = {
+        ...formData,
+        experience: formData.experience.map(exp => ({
+          ...exp,
+          startDate: exp.startDate ? exp.startDate.toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' }) : '',
+          endDate: exp.endDate ? exp.endDate.toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' }) : ''
+        }))
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/cv-maker/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify(formattedData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate CV');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate CV');
       }
 
+      // Get the PDF blob
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `${formData.fullName.replace(/\s+/g, '_')}_CV.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
       
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${formData.fullName}-CV.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
       toast.success('CV generated successfully!');
-    } catch (error) {
+      
+      // Ask user if they want to save the CV
+      if (window.confirm('Would you like to save this CV to your profile?')) {
+        await handleSaveCV();
+      }
+    } catch (error: any) {
       console.error('Error:', error);
-      toast.error('Failed to generate CV');
+      toast.error(error.message || 'Failed to generate CV');
     } finally {
       setLoading(false);
     }

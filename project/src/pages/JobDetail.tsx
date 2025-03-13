@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   useParams,
   useNavigate,
+  Link,
 } from 'react-router-dom';
 import {
   Briefcase,
@@ -15,13 +16,25 @@ import {
   Calendar,
   Bookmark,
   MessageSquare,
+  Upload,
+  FileText,
+  AlertCircle,
+  X,
 } from 'lucide-react';
-import { jobs } from '../services/api';
+import { jobs, profiles } from '../services/api';
 import { Job } from '../types';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../contexts/AuthContext';
 import Footer from '../components/Footer';
+
+interface Document {
+  _id: string;
+  name: string;
+  url: string;
+  type: 'cv' | 'certificate' | 'other';
+  uploadedAt: string;
+}
 
 const JobDetail: React.FC = () => {
   const { jobId } = useParams();
@@ -34,6 +47,9 @@ const JobDetail: React.FC = () => {
   const [applicationMessage, setApplicationMessage] = useState('');
   const [hasApplied, setHasApplied] = useState(false);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [userCVs, setUserCVs] = useState<Document[]>([]);
+  const [loadingCVs, setLoadingCVs] = useState(true);
 
   useEffect(() => {
     console.log('Current auth state:', { 
@@ -76,6 +92,33 @@ const JobDetail: React.FC = () => {
     fetchJobDetails();
   }, [jobId, authUser]);
 
+  useEffect(() => {
+    const fetchUserCVs = async () => {
+      if (!authUser) return;
+      
+      try {
+        setLoadingCVs(true);
+        const response = await profiles.getUserDocuments(authUser.id);
+        setUserCVs(response.filter(doc => doc.type === 'cv'));
+      } catch (error) {
+        console.error('Error fetching CVs:', error);
+      } finally {
+        setLoadingCVs(false);
+      }
+    };
+
+    fetchUserCVs();
+  }, [authUser]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setDocuments(prev => [...prev, ...files]);
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -95,16 +138,35 @@ const JobDetail: React.FC = () => {
       return;
     }
 
+    if (documents.length === 0 && userCVs.length === 0) {
+      toast.error('Please attach at least one CV document');
+      return;
+    }
+
     try {
       setApplying(true);
+      
+      // Upload new documents if any
+      const uploadedDocs = [];
+      for (const file of documents) {
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('type', 'cv');
+        const uploadedDoc = await profiles.uploadDocument(authUser.id, file, 'cv');
+        uploadedDocs.push(uploadedDoc._id);
+      }
+
+      // Submit application with documents
       await jobs.apply(jobId!, { 
         message: applicationMessage,
-        coverLetter: '' // Add cover letter if needed
+        documents: [...uploadedDocs, ...userCVs.map(cv => cv._id)]
       });
+
       setHasApplied(true);
       setShowApplicationForm(false);
       toast.success('Application submitted successfully!');
       setApplicationMessage('');
+      setDocuments([]);
     } catch (error: any) {
       console.error('Error applying for job:', error);
       toast.error(error.response?.data?.message || 'Failed to submit application');
@@ -161,6 +223,123 @@ const JobDetail: React.FC = () => {
       </div>
     );
   }
+
+  const renderApplicationForm = () => (
+    <form onSubmit={handleApply} className="space-y-6">
+      <textarea
+        value={applicationMessage}
+        onChange={(e) => setApplicationMessage(e.target.value)}
+        placeholder="Write a message to the employer..."
+        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
+        rows={4}
+        required
+      />
+
+      {/* CV Section */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-medium text-gray-900">CV Documents</h3>
+          {userCVs.length === 0 && (
+            <Link
+              to="/cv-maker"
+              className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+            >
+              Create New CV
+            </Link>
+          )}
+        </div>
+
+        {/* Existing CVs */}
+        {loadingCVs ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+          </div>
+        ) : userCVs.length > 0 ? (
+          <div className="space-y-2">
+            {userCVs.map(cv => (
+              <div key={cv._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-teal-600 mr-2" />
+                  <span className="text-sm text-gray-600">{cv.name}</span>
+                </div>
+                <a
+                  href={cv.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-600 hover:text-teal-700 text-sm"
+                >
+                  View
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-4 space-y-3">
+            <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto" />
+            <p className="text-gray-600">No CV found in your profile</p>
+          </div>
+        )}
+
+        {/* Upload New Documents */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Upload Additional Documents
+          </label>
+          <div className="flex items-center justify-center w-full">
+            <label className="w-full flex flex-col items-center px-4 py-6 bg-white text-gray-500 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-50">
+              <Upload className="h-8 w-8 text-teal-600" />
+              <span className="mt-2 text-sm">Click to upload documents</span>
+              <input
+                type="file"
+                className="hidden"
+                multiple
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Selected Files List */}
+        {documents.length > 0 && (
+          <div className="space-y-2">
+            {documents.map((file, index) => (
+              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-teal-600 mr-2" />
+                  <span className="text-sm text-gray-600">{file.name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeDocument(index)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex space-x-3">
+        <button
+          type="submit"
+          disabled={applying}
+          className="flex-1 py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors disabled:opacity-50"
+        >
+          {applying ? 'Submitting...' : 'Submit Application'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowApplicationForm(false)}
+          className="py-3 px-6 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -286,32 +465,7 @@ const JobDetail: React.FC = () => {
                       Apply for this Job
                     </button>
                   ) : (
-                    <form onSubmit={handleApply} className="space-y-4">
-                      <textarea
-                        value={applicationMessage}
-                        onChange={(e) => setApplicationMessage(e.target.value)}
-                        placeholder="Write a message to the employer..."
-                        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                        rows={4}
-                        required
-                      />
-                      <div className="flex space-x-3">
-                        <button
-                          type="submit"
-                          disabled={applying}
-                          className="flex-1 py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors disabled:opacity-50"
-                        >
-                          {applying ? 'Submitting...' : 'Submit Application'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowApplicationForm(false)}
-                          className="py-3 px-6 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+                    renderApplicationForm()
                   )}
                 </>
               )}

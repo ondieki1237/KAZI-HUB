@@ -1,26 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { auth } from '../services/api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
+  const { isAuthenticated, setUser, setIsAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await auth.login(formData.email, formData.password);
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      const { user, token } = await auth.login(formData.email, formData.password);
+      setUser(user);
+      setIsAuthenticated(true);
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
       toast.success('Login successful!');
       navigate('/');
     } catch (error) {
-      toast.error('Invalid credentials');
+      toast.error('Login failed');
     }
   };
 

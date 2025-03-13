@@ -28,18 +28,34 @@ api.interceptors.response.use(
 );
 
 // Add token to requests if it exists
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    console.log('Adding token to request:', token.substring(0, 10) + '...');
-    config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    console.log('No token found for request');
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      console.log('Adding token to request:', token.substring(0, 10) + '...');
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.log('No token found for request');
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+);
+
+// Handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const auth = {
   login: async (email: string, password: string) => {
@@ -47,20 +63,26 @@ export const auth = {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data;
       
-      // Ensure we store both id and _id if available
-      const userToStore = {
-        ...user,
-        id: user.id || user._id, // Ensure we have at least one ID
-      };
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userToStore));
-      
-      if (email === 'admin@gmail.com') {
-        window.location.href = '/admin';
+      // Validate token and user data
+      if (!token || !user || !user._id) {
+        throw new Error('Invalid response from server');
       }
-      
-      return response.data;
+
+      // Store auth data
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify({
+        ...user,
+        _id: user._id.toString(),
+        id: user._id.toString()
+      }));
+
+      // Log successful auth
+      console.log('Auth successful:', {
+        userId: user._id,
+        tokenPreview: token.substring(0, 20) + '...'
+      });
+
+      return { token, user };
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -299,25 +321,66 @@ export const jobs = {
 export const profiles = {
   getMyProfile: async () => {
     try {
-      const response = await api.get('/users/my-profile');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await api.get('/users/my-profile', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      console.log('Profile data received:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching profile:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
       throw error;
     }
   },
 
   updateProfile: async (profileData: Partial<User>) => {
     try {
-      const response = await api.put(`/users/profile`, profileData);
+      const response = await api.patch('/users/profile', profileData);
+      console.log('Profile update response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       throw error;
     }
   },
 
-  uploadDocument: async (userId: string, file: File, type: VerificationDocument['type']) => {
+  uploadAvatar: async (formData: FormData) => {
+    try {
+      const response = await api.post('/users/profile/avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log('Avatar upload response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      throw error;
+    }
+  },
+
+  getUserDocuments: async (userId: string) => {
+    try {
+      const response = await api.get(`/users/${userId}/documents`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user documents:', error);
+      throw error;
+    }
+  },
+
+  uploadDocument: async (userId: string, file: File, type: 'cv' | 'certificate' | 'other') => {
     const formData = new FormData();
     formData.append('document', file);
     formData.append('type', type);
@@ -329,6 +392,27 @@ export const profiles = {
     });
     return response.data;
   },
+
+  saveCV: async (cvData: any, userId: string) => {
+    try {
+      const response = await api.post(`/users/${userId}/cv`, cvData);
+      console.log('CV saved:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error saving CV:', error);
+      throw error;
+    }
+  },
+
+  getCVs: async (userId: string) => {
+    try {
+      const response = await api.get(`/users/${userId}/cv`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching CVs:', error);
+      throw error;
+    }
+  }
 };
 
 export const payments = {

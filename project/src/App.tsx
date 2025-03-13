@@ -29,8 +29,9 @@ import AdminUsers from './pages/admin/Users';
 import AdminJobs from './pages/admin/Jobs';
 import AdminSkills from './pages/admin/Skills';
 import AppliedJobs from './pages/AppliedJobs';
+import LandingPage from './pages/LandingPage';
 
-// Create a protected route component
+// Protected Admin Route
 const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   
@@ -41,11 +42,23 @@ const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Protected Route for authenticated users
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   
   if (!user) {
     return <Navigate to="/login" />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Protected Home Route to handle landing vs home page
+const ProtectedHomeRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <LandingPage />;
   }
   
   return <>{children}</>;
@@ -57,11 +70,22 @@ function App() {
       <Router>
         <Toaster position="top-right" />
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route 
+            path="/" 
+            element={
+              <ProtectedHomeRoute>
+                <Home />
+              </ProtectedHomeRoute>
+            } 
+          />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/post-job" element={<PostJob />} />
-          <Route path="/profile/:userId" element={<Profile />} />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/jobs/create" element={<CreateJob />} />
