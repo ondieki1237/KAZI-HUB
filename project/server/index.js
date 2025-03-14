@@ -26,9 +26,17 @@ const app = express();
 const server = createServer(app);
 const io = initializeSocket(server);
 
+// Environment variables
+const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '192.168.1.157';
+const CLIENT_PORT = 5173;
+
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://192.168.1.157:5173'],
+  origin: [
+    `http://localhost:${CLIENT_PORT}`,
+    `http://${HOST}:${CLIENT_PORT}`
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -120,7 +128,7 @@ if (process.env.NODE_ENV === 'production') {
 
   // Redirect other routes to the frontend during development
   app.get('*', (req, res) => {
-    res.redirect(`http://${process.env.LOCAL_IP}:5173`);
+    res.redirect(`http://${HOST}:${CLIENT_PORT}`);
   });
 }
 
@@ -137,9 +145,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-const LOCAL_IP = process.env.LOCAL_IP || '192.168.1.157';
+// Start server
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Access the backend API from another device using: http://${LOCAL_IP}:${PORT}`);
+  console.log(`📡 Local:            http://localhost:${PORT}`);
+  console.log(`📡 On Your Network:  http://${HOST}:${PORT}`);
+  console.log(`🌐 API URL:          ${process.env.API_URL}`);
 });
