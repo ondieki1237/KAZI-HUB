@@ -30,7 +30,7 @@ import AdminJobs from './pages/admin/Jobs';
 import AdminSkills from './pages/admin/Skills';
 import AppliedJobs from './pages/AppliedJobs';
 import LandingPage from './pages/LandingPage';
-import Notifications from './pages/Notifications'; // Added import
+import Notifications from './pages/Notifications';
 
 // Protected Admin Route
 const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -151,7 +151,7 @@ function App() {
                 <Notifications />
               </ProtectedRoute>
             } 
-          /> {/* Added Notifications route */}
+          />
         </Routes>
       </Router>
     </AuthProvider>
