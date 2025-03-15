@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import Link from "next/link"
-import Image from "next/image"
+import { Link, useNavigate } from 'react-router-dom'
 import { Briefcase, ChevronRight, Facebook, Hammer, HardHat, Instagram, Linkedin, PenTool, Search, Shield, Star, Twitter, Wrench, Menu, X } from 'lucide-react'
+import { toast } from 'react-hot-toast'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Particle {
   x: number;
@@ -17,12 +18,13 @@ interface Particle {
 }
 
 export default function LandingPage() {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [location, setLocation] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // Background effect setup
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -30,7 +32,6 @@ export default function LandingPage() {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    // Set canvas dimensions
     const setCanvasDimensions = () => {
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
@@ -39,9 +40,7 @@ export default function LandingPage() {
     setCanvasDimensions()
     window.addEventListener("resize", setCanvasDimensions)
 
-    // Create particles
     const particlesArray: Particle[] = []
-
     const numberOfParticles = 50
     const colors = ["rgba(38, 166, 154, 0.3)", "rgba(77, 208, 225, 0.3)"]
 
@@ -54,22 +53,35 @@ export default function LandingPage() {
       color: string;
 
       constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = Math.random() * canvas.height
-        this.size = Math.random() * 5 + 1
-        this.speedX = Math.random() * 0.5 - 0.25
-        this.speedY = Math.random() * 0.5 - 0.25
-        this.color = colors[Math.floor(Math.random() * colors.length)]
+        const canvas = canvasRef.current;
+        if (!canvas) {
+          this.x = 0;
+          this.y = 0;
+          this.size = 0;
+          this.speedX = 0;
+          this.speedY = 0;
+          this.color = '';
+          return;
+        }
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 5 + 1;
+        this.speedX = Math.random() * 0.5 - 0.25;
+        this.speedY = Math.random() * 0.5 - 0.25;
+        this.color = colors[Math.floor(Math.random() * colors.length)];
       }
 
       update() {
-        this.x += this.speedX
-        this.y += this.speedY
+        const canvas = canvasRef.current;
+        if (!canvas) return;
 
-        if (this.x > canvas.width) this.x = 0
-        if (this.x < 0) this.x = canvas.width
-        if (this.y > canvas.height) this.y = 0
-        if (this.y < 0) this.y = canvas.height
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        if (this.x > canvas.width) this.x = 0;
+        if (this.x < 0) this.x = canvas.width;
+        if (this.y > canvas.height) this.y = 0;
+        if (this.y < 0) this.y = canvas.height;
       }
 
       draw() {
@@ -106,125 +118,151 @@ export default function LandingPage() {
     }
   }, [])
 
-  // Sample testimonial data with Kenyan names and African faces
   const testimonials = [
     {
       name: "Wanjiku Kamau",
       role: "Electrician",
-      quote:
-        "KaziHub helped me find consistent work as an electrician. I've built relationships with contractors who now hire me regularly.",
+      quote: "KaziHub helped me find consistent work as an electrician.",
       rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1531384441138-2736e62e0919?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80",
+      avatar: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?ixlib=rb-4.0.3&auto=format&fit=crop&w=774&q=80",
     },
     {
       name: "Otieno Ochieng",
       role: "Construction Manager",
-      quote:
-        "Finding reliable workers quickly is essential. KaziHub streamlined our hiring process and delivered skilled talent.",
+      quote: "Finding reliable workers quickly is essential.",
       rating: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1539701938214-0d9736e1c16b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80",
+      avatar: "https://images.unsplash.com/photo-1539701938214-0d9736e1c16b?ixlib=rb-4.0.3&auto=format&fit=crop&w=774&q=80",
     },
     {
       name: "Njeri Wangari",
       role: "HVAC Technician",
-      quote:
-        "I struggled to find steady work until KaziHub. Now I have more opportunities than I can handle and better rates.",
+      quote: "I struggled to find steady work until KaziHub.",
       rating: 4,
-      avatar:
-        "https://images.unsplash.com/photo-1589156280159-27698a70f29e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=772&q=80",
+      avatar: "https://images.unsplash.com/photo-1589156280159-27698a70f29e?ixlib=rb-4.0.3&auto=format&fit=crop&w=772&q=80",
     },
   ]
 
-  // Duplicate testimonials for seamless scrolling
   const doubledTestimonials = [...testimonials, ...testimonials]
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    // Handle search functionality
-    console.log("Searching for:", searchQuery, "in", location)
+  const checkAuth = (requiredAuth: boolean, redirectPath: string) => {
+    if (requiredAuth && !isAuthenticated) {
+      toast.error('Please log in to access this feature')
+      navigate('/login')
+      return false
+    }
+    navigate(redirectPath)
+    return true
   }
 
-  // Inline styles
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const searchParams = new URLSearchParams()
+    if (searchQuery) searchParams.append('query', searchQuery)
+    if (location) searchParams.append('location', location)
+    navigate(`/jobs?${searchParams.toString()}`)
+  }
+
+  const handleCategoryClick = (category: string) => {
+    navigate(`/jobs?category=${category}`)
+  }
+
+  const handleProtectedNavigation = (path: string, requiresAuth: boolean = true) => {
+    if (requiresAuth && !isAuthenticated) {
+      toast.error('Please log in to access this feature')
+      navigate('/login')
+      return
+    }
+    navigate(path)
+  }
+
   const styles = {
     canvas: {
-      position: "absolute",
+      position: "absolute" as const,
       inset: 0,
       width: "100%",
       height: "100%",
-      pointerEvents: "none",
+      pointerEvents: "none" as const,
       opacity: 0.3,
       zIndex: 0,
     },
     gradientBlob1: {
-      position: "absolute",
+      position: "absolute" as const,
       top: "10%",
       left: "10%",
       width: "40%",
       height: "40%",
       borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(38, 166, 154, 0.2) 0%, rgba(38, 166, 154, 0) 70%)",
+      background: "radial-gradient(circle, rgba(0, 204, 131, 0.15) 0%, rgba(0, 204, 131, 0) 70%)",
       filter: "blur(50px)",
-      opacity: 0.5,
+      opacity: 0.7,
       animation: "float 6s ease-in-out infinite",
     },
     gradientBlob2: {
-      position: "absolute",
+      position: "absolute" as const,
       bottom: "10%",
       right: "10%",
       width: "60%",
       height: "60%",
       borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(77, 208, 225, 0.2) 0%, rgba(77, 208, 225, 0) 70%)",
+      background: "radial-gradient(circle, rgba(0, 237, 100, 0.15) 0%, rgba(0, 237, 100, 0) 70%)",
       filter: "blur(50px)",
       opacity: 0.5,
       animation: "float 6s ease-in-out infinite 2s",
     },
     gradientBlob3: {
-      position: "absolute",
+      position: "absolute" as const,
       top: "20%",
       right: "20%",
       width: "40%",
       height: "40%",
       borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(38, 166, 154, 0.2) 0%, rgba(38, 166, 154, 0) 70%)",
+      background: "radial-gradient(circle, rgba(76, 110, 245, 0.15) 0%, rgba(76, 110, 245, 0) 70%)",
       filter: "blur(50px)",
-      opacity: 0.5,
+      opacity: 0.6,
       animation: "float 6s ease-in-out infinite 1s",
     },
     gradientBlob4: {
-      position: "absolute",
+      position: "absolute" as const,
       bottom: "20%",
       left: "20%",
       width: "60%",
       height: "60%",
       borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(77, 208, 225, 0.2) 0%, rgba(77, 208, 225, 0) 70%)",
+      background: "radial-gradient(circle, rgba(47, 193, 255, 0.15) 0%, rgba(47, 193, 255, 0) 70%)",
       filter: "blur(50px)",
       opacity: 0.5,
       animation: "float 6s ease-in-out infinite 3s",
     },
+    backgroundPattern: {
+      position: "absolute" as const,
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      backgroundImage: "radial-gradient(#e5e7eb 1px, transparent 1px)",
+      backgroundSize: "20px 20px",
+      opacity: 0.3,
+      zIndex: 0,
+    },
     gradientOverlay1: {
-      position: "absolute",
+      position: "absolute" as const,
       top: 0,
       left: 0,
       width: "16px",
       height: "100%",
       background: "linear-gradient(to right, rgba(249, 250, 251, 1), rgba(249, 250, 251, 0))",
-      pointerEvents: "none",
+      pointerEvents: "none" as const,
     },
     gradientOverlay2: {
-      position: "absolute",
+      position: "absolute" as const,
       top: 0,
       right: 0,
       width: "16px",
       height: "100%",
       background: "linear-gradient(to left, rgba(249, 250, 251, 1), rgba(249, 250, 251, 0))",
-      pointerEvents: "none",
+      pointerEvents: "none" as const,
     },
     ctaBlob1: {
-      position: "absolute",
+      position: "absolute" as const,
       top: 0,
       right: 0,
       width: "64px",
@@ -235,7 +273,7 @@ export default function LandingPage() {
       opacity: 0.1,
     },
     ctaBlob2: {
-      position: "absolute",
+      position: "absolute" as const,
       bottom: 0,
       left: 0,
       width: "64px",
@@ -245,23 +283,55 @@ export default function LandingPage() {
       filter: "blur(30px)",
       opacity: 0.1,
     },
+    mobileMenu: {
+      position: "fixed" as const,
+      top: 0,
+      right: 0,
+      backgroundColor: "rgba(13, 148, 136, 0.95)",
+      zIndex: 50,
+      transition: "transform 0.5s ease-in-out",
+      transformStyle: "preserve-3d" as const,
+    },
+    contentBlur: {
+      filter: "blur(4px)",
+      transition: "filter 0.3s ease-in-out",
+    },
+    contentNormal: {
+      filter: "none",
+      transition: "filter 0.3s ease-in-out",
+    }
   }
 
-  // Custom keyframes for animations
   useEffect(() => {
     const styleSheet = document.createElement("style")
     styleSheet.textContent = `
       @keyframes float {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-        100% { transform: translateY(0px); }
+        0% { transform: translateY(0px) scale(1); }
+        50% { transform: translateY(-10px) scale(1.05); }
+        100% { transform: translateY(0px) scale(1); }
       }
       
       @keyframes scroll {
         0% { transform: translateX(0); }
         100% { transform: translateX(-50%); }
       }
-      
+
+      @keyframes pulse {
+        0% { opacity: 0.5; }
+        50% { opacity: 0.8; }
+        100% { opacity: 0.5; }
+      }
+
+      @keyframes flipIn {
+        0% { transform: translateX(100%) rotateY(-90deg); }
+        100% { transform: translateX(0) rotateY(0deg); }
+      }
+
+      @keyframes flipOut {
+        0% { transform: translateX(0) rotateY(0deg); }
+        100% { transform: translateX(100%) rotateY(90deg); }
+      }
+
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
       }
@@ -269,6 +339,55 @@ export default function LandingPage() {
       .scrollbar-hide {
         -ms-overflow-style: none;
         scrollbar-width: none;
+      }
+
+      @media (max-width: 767px) {
+        .mobile-menu {
+          width: 33vw;
+          height: 33vh;
+          transform: translateX(100%) rotateY(-90deg);
+          perspective: 1000px;
+        }
+        .mobile-menu-open {
+          animation: flipIn 0.5s ease-in-out forwards;
+        }
+        .mobile-menu:not(.mobile-menu-open) {
+          animation: flipOut 0.5s ease-in-out forwards;
+        }
+        .content-blur {
+          filter: blur(4px);
+        }
+      }
+      
+      @media (min-width: 768px) {
+        .mobile-menu {
+          display: none;
+        }
+        .content-blur {
+          filter: none !important;
+        }
+      }
+
+      .card-3d {
+        transition: transform 0.3s ease-in-out;
+        transform-style: preserve-3d;
+        perspective: 1000px;
+      }
+
+      .card-3d:hover {
+        transform: rotateX(5deg) rotateY(5deg) translateZ(20px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .button-3d {
+        transition: transform 0.2s ease-in-out;
+        transform-style: preserve-3d;
+        perspective: 1000px;
+      }
+
+      .button-3d:hover {
+        transform: translateZ(10px) scale(1.05);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
       }
     `
     document.head.appendChild(styleSheet)
@@ -278,72 +397,77 @@ export default function LandingPage() {
     }
   }, [])
 
-  // Mobile menu toggle
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
   }
 
-  // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const mobileMenu = document.getElementById('mobile-menu')
       const menuButton = document.getElementById('menu-button')
-      if (mobileMenu && !mobileMenu.contains(event.target as Node) && 
-          menuButton && !menuButton.contains(event.target as Node)) {
+      if (
+        mobileMenu && 
+        !mobileMenu.contains(event.target as Node) && 
+        menuButton && 
+        !menuButton.contains(event.target as Node) &&
+        isMobileMenuOpen
+      ) {
         setIsMobileMenuOpen(false)
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [isMobileMenuOpen])
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Navbar */}
       <nav className="sticky top-0 z-50 w-full border-b bg-gradient-to-r from-teal-600 to-cyan-500 shadow-md">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105">
+            <Link to="/" className="flex items-center gap-2 transition-transform hover:scale-105">
               <Briefcase className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
               <span className="text-xl sm:text-2xl font-bold text-white">KaziHub</span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex justify-center flex-1">
-              <ul className="flex">
+            <div className="hidden md:block flex-1 max-w-3xl mx-auto">
+              <ul className="flex justify-center space-x-8">
                 {[
                   { name: "Jobs", href: "/jobs" },
                   { name: "Profile", href: "/profile" },
                   { name: "Post a Job", href: "/post-job" },
                   { name: "Messages", href: "/messages" }
                 ].map((item) => (
-                  <li key={item.name} className="mx-6">
-                    <Link href={item.href} className="relative py-2 inline-block">
-                      <span className="text-lg font-bold transition-colors duration-300 text-white">
+                  <li key={item.name}>
+                    <Link 
+                      to={item.href} 
+                      className="relative py-2 inline-block group"
+                    >
+                      <span className="text-lg font-medium text-white transition-colors duration-300 group-hover:text-teal-100">
                         {item.name}
                       </span>
-                      <span className="absolute bottom-0 left-0 h-[3px] bg-white transition-all duration-300"></span>
+                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
                     </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Login/Signup Buttons */}
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Link href="/login" className="hidden md:block text-white hover:text-teal-100 font-medium">
+            <div className="hidden md:flex items-center gap-6">
+              <Link 
+                to="/login" 
+                className="text-white hover:text-teal-100 font-medium transition-colors"
+              >
                 Log in
               </Link>
-              <Link
-                href="/register"
-                className="bg-white text-teal-600 px-4 py-2 rounded-lg font-medium hover:bg-teal-50 transition-all hover:shadow-lg hover:scale-105"
+              <button
+                onClick={() => navigate('/register')}
+                className="bg-white text-teal-600 px-6 py-2 rounded-lg font-medium button-3d"
               >
                 Sign Up
-              </Link>
+              </button>
             </div>
 
-            {/* Mobile Menu Button */}
             <button
               id="menu-button"
               onClick={toggleMobileMenu}
@@ -359,12 +483,12 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         <div
           id="mobile-menu"
-          className={`md:hidden ${isMobileMenuOpen ? 'block' : 'hidden'} bg-teal-600 border-t border-teal-700`}
+          style={styles.mobileMenu}
+          className={`mobile-menu ${isMobileMenuOpen ? 'mobile-menu-open' : ''}`}
         >
-          <div className="container mx-auto px-4 py-4">
+          <div className="container mx-auto px-4 py-4 overflow-y-auto">
             <ul className="space-y-4">
               {[
                 { name: "Jobs", href: "/jobs" },
@@ -374,7 +498,7 @@ export default function LandingPage() {
               ].map((item) => (
                 <li key={item.name}>
                   <Link
-                    href={item.href}
+                    to={item.href}
                     className="block text-white hover:text-teal-100 font-medium py-2"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
@@ -384,7 +508,7 @@ export default function LandingPage() {
               ))}
               <li className="pt-4 border-t border-teal-700">
                 <Link
-                  href="/login"
+                  to="/login"
                   className="block text-white hover:text-teal-100 font-medium py-2"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -393,8 +517,8 @@ export default function LandingPage() {
               </li>
               <li>
                 <Link
-                  href="/register"
-                  className="block bg-white text-teal-600 px-4 py-2 rounded-lg font-medium hover:bg-teal-50 transition-all hover:shadow-lg"
+                  to="/register"
+                  className="block bg-white text-teal-600 px-4 py-2 rounded-lg font-medium button-3d"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Sign Up
@@ -405,41 +529,45 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-teal-50/80 to-white overflow-hidden">
-          {/* Inline 3D background effect */}
-          <canvas ref={canvasRef} style={styles.canvas} />
-          <div style={styles.gradientBlob1}></div>
-          <div style={styles.gradientBlob2}></div>
+      <main className={`flex-1 ${isMobileMenuOpen ? 'content-blur' : ''}`}>
+        <section className="relative w-full py-12 md:py-24 lg:py-32 xl:py-40 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
+          <div style={styles.backgroundPattern}></div>
+          <div className="gradient-blob" style={styles.gradientBlob1}></div>
+          <div className="gradient-blob" style={styles.gradientBlob2}></div>
+          <div className="gradient-blob" style={styles.gradientBlob3}></div>
+          <div className="gradient-blob" style={styles.gradientBlob4}></div>
 
           <div className="container mx-auto px-4 sm:px-6 relative">
-            <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 items-center">
-              <div className="flex flex-col justify-center space-y-6 text-center lg:text-left animate-in fade-in slide-in-from-bottom-5 duration-700">
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl md:text-5xl lg:text-6xl">
-                  <span className="block text-teal-600">Connecting</span>
+            <div className="grid gap-8 lg:grid-cols-2 lg:gap-16 items-center">
+              <div className="flex flex-col justify-center space-y-8 text-center lg:text-left">
+                <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl xl:text-6xl">
+                  <span className="block text-teal-600 mb-2">Connecting</span>
                   Blue Collar Workers with Great Opportunities
                 </h1>
-                <p className="max-w-[600px] mx-auto lg:mx-0 text-gray-600 text-base sm:text-lg md:text-xl">
-                  KaziHub helps skilled workers find jobs and employers hire reliable talent in construction,
-                  manufacturing, maintenance, and more.
+                <p className="text-lg sm:text-xl text-gray-600 max-w-[600px] mx-auto lg:mx-0">
+                  KaziHub helps skilled workers find jobs and employers hire reliable talent.
                 </p>
-                <div className="flex flex-col gap-4 sm:flex-row justify-center lg:justify-start">
-                  <Link href="/jobs" className="group bg-teal-600 text-white hover:bg-teal-700 inline-flex items-center transition-all hover:shadow-lg hover:scale-105 px-4 py-2 rounded-lg">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                  <button 
+                    onClick={() => navigate('/jobs')}
+                    className="group bg-teal-600 text-white hover:bg-teal-700 inline-flex items-center justify-center button-3d px-8 py-3 rounded-lg text-lg"
+                  >
                     Find Jobs
-                    <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                  <Link href="/post-job" className="border-teal-600 text-teal-600 hover:bg-teal-50 transition-all hover:shadow-lg px-4 py-2 rounded-lg border">
+                    <ChevronRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </button>
+                  <button 
+                    onClick={() => handleProtectedNavigation('/post-job')}
+                    className="border-2 border-teal-600 text-teal-600 hover:bg-teal-50 button-3d px-8 py-3 rounded-lg text-lg inline-flex items-center justify-center"
+                  >
                     Post a Job
-                  </Link>
+                  </button>
                 </div>
               </div>
-              {/* Hero Image */}
-              <div className="relative rounded-xl overflow-hidden shadow-2xl transition-transform hover:scale-[1.02]">
+              <div className="relative rounded-xl overflow-hidden shadow-2xl transition-transform hover:scale-[1.02] aspect-[4/3]">
                 <img
-                  src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                  src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
                   alt="African construction workers collaborating"
-                  className="w-full h-full object-cover rounded-xl"
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-teal-600/20 to-transparent"></div>
               </div>
@@ -447,17 +575,16 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Search Section */}
         <section className="w-full py-12 md:py-16">
           <div className="container mx-auto px-4 sm:px-6">
-            <div className="mx-auto max-w-4xl bg-white rounded-xl shadow-xl p-8 -mt-16 sm:-mt-20 relative z-10 transform transition-all hover:shadow-2xl">
+            <div className="mx-auto max-w-4xl bg-white rounded-xl shadow-xl p-6 sm:p-8 -mt-16 sm:-mt-20 relative z-10 transform transition-all hover:shadow-2xl">
               <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative group">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 transition-colors group-hover:text-teal-600" />
                   <input
-                    type="text"
-                    placeholder="Job title or keyword"
-                    className="pl-10 transition-all border-gray-200 focus:border-teal-500 focus:ring-teal-500 group-hover:border-teal-300 w-full p-2 rounded-md border"
+                    type="text" 
+                    placeholder="Job title or keyword" 
+                    className="pl-10 transition-all border-gray-200 focus:border-teal-500 focus:ring-teal-500 group-hover:border-teal-300 w-full p-3 rounded-lg border text-base"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -465,16 +592,16 @@ export default function LandingPage() {
                 <div className="flex-1 relative group">
                   <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 transition-colors group-hover:text-teal-600" />
                   <input
-                    type="text"
-                    placeholder="Location"
-                    className="pl-10 transition-all border-gray-200 focus:border-teal-500 focus:ring-teal-500 group-hover:border-teal-300 w-full p-2 rounded-md border"
+                    type="text" 
+                    placeholder="Location" 
+                    className="pl-10 transition-all border-gray-200 focus:border-teal-500 focus:ring-teal-500 group-hover:border-teal-300 w-full p-3 rounded-lg border text-base"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                   />
                 </div>
                 <button
                   type="submit"
-                  className="bg-teal-600 text-white hover:bg-teal-700 w-full sm:w-auto transition-all hover:shadow-lg hover:scale-105 px-4 py-2 rounded-md"
+                  className="bg-teal-600 text-white hover:bg-teal-700 w-full sm:w-auto button-3d px-6 py-3 rounded-lg text-base font-medium min-w-[120px]"
                 >
                   Search Jobs
                 </button>
@@ -483,7 +610,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* How It Works Section */}
         <section id="how-it-works" className="w-full py-12 md:py-24 lg:py-32 bg-gray-50 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[size:20px_20px] opacity-5"></div>
           <div className="container mx-auto px-4 sm:px-6 relative">
@@ -495,7 +621,7 @@ export default function LandingPage() {
                 Simple Process, Powerful Results
               </h2>
               <p className="max-w-2xl text-gray-600 text-base sm:text-lg md:text-xl">
-                KaziHub makes it easy to connect workers with employers in just a few simple steps.
+                KaziHub makes it easy to connect workers with employers.
               </p>
             </div>
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
@@ -503,23 +629,22 @@ export default function LandingPage() {
                 {
                   icon: <HardHat className="h-8 w-8 text-teal-600" />,
                   title: "Create a Profile",
-                  content: "Sign up and create your profile showcasing your skills, experience, and availability.",
+                  content: "Sign up and create your profile showcasing your skills.",
                 },
                 {
                   icon: <Search className="h-8 w-8 text-teal-600" />,
                   title: "Find Opportunities",
-                  content: "Browse job listings or get matched with employers looking for your specific skills.",
+                  content: "Browse job listings or get matched with employers.",
                 },
                 {
                   icon: <Briefcase className="h-8 w-8 text-teal-600" />,
                   title: "Get Hired",
-                  content:
-                    "Apply for jobs, connect with employers, and start working on projects that match your skills.",
+                  content: "Apply for jobs and start working on projects.",
                 },
               ].map((item, index) => (
                 <div
                   key={index}
-                  className="border border-teal-100 p-6 rounded-lg shadow-sm bg-white hover:shadow-md transition-shadow transform hover:scale-105 duration-300"
+                  className="border border-teal-100 p-6 rounded-lg shadow-sm bg-white card-3d"
                 >
                   <div className="mb-4">
                     <div className="mx-auto rounded-full bg-teal-100 p-3 w-14 h-14 flex items-center justify-center transform transition-all hover:scale-110 hover:bg-teal-200">
@@ -536,7 +661,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* For Workers Section */}
         <section id="for-workers" className="w-full py-12 md:py-24 lg:py-32 bg-teal-50/50 relative overflow-hidden">
           <div className="relative w-full h-full">
             <div style={styles.gradientBlob3}></div>
@@ -546,7 +670,7 @@ export default function LandingPage() {
             <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 items-center">
               <div className="relative rounded-xl overflow-hidden shadow-2xl transition-transform hover:scale-[1.02]">
                 <img
-                  src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80"
+                  src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1469&q=80"
                   alt="African professional worker"
                   className="w-full h-full object-cover rounded-xl"
                 />
@@ -560,7 +684,7 @@ export default function LandingPage() {
                   Find Your Next Job Opportunity
                 </h2>
                 <p className="max-w-lg mx-auto lg:mx-0 text-gray-600 text-base sm:text-lg">
-                  KaziHub helps skilled workers find stable employment and advance their careers.
+                  KaziHub helps skilled workers find stable employment.
                 </p>
                 <ul className="space-y-4 text-gray-600">
                   {[
@@ -590,7 +714,10 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <button className="bg-teal-600 text-white hover:bg-teal-700 transition-all hover:shadow-lg hover:scale-105 px-4 py-2 rounded-lg">
+                <button 
+                  onClick={() => handleProtectedNavigation('/profile/create')}
+                  className="bg-teal-600 text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg"
+                >
                   Create Worker Profile
                 </button>
               </div>
@@ -598,7 +725,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* For Employers Section */}
         <section id="for-employers" className="w-full py-12 md:py-24 lg:py-32 bg-white relative overflow-hidden">
           <div className="relative w-full h-full">
             <div style={{ ...styles.gradientBlob1, top: "20%", right: "20%", left: "auto" }}></div>
@@ -614,14 +740,14 @@ export default function LandingPage() {
                   Hire Skilled Workers Quickly
                 </h2>
                 <p className="max-w-lg mx-auto lg:mx-0 text-gray-600 text-base sm:text-lg">
-                  Find reliable, pre-vetted workers for your projects and jobs with KaziHub's employer tools.
+                  Find reliable, pre-vetted workers for your projects.
                 </p>
                 <ul className="space-y-4 text-gray-600">
                   {[
                     "Post jobs and receive qualified applicants",
-                    "Browse worker profiles and invite them to apply",
-                    "Verify skills and experience with our rating system",
-                    "Manage your workforce efficiently with our tools",
+                    "Browse worker profiles",
+                    "Verify skills and experience",
+                    "Manage your workforce efficiently",
                   ].map((item, index) => (
                     <li key={index} className="flex items-center gap-3 justify-center lg:justify-start group">
                       <div className="rounded-full bg-teal-100 p-1.5 transition-all group-hover:bg-teal-200">
@@ -644,7 +770,10 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <button className="bg-teal-600 text-white hover:bg-teal-700 transition-all hover:shadow-lg hover:scale-105 px-4 py-2 rounded-lg">
+                <button 
+                  onClick={() => handleProtectedNavigation('/post-job')}
+                  className="bg-teal-600 text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg"
+                >
                   Post a Job
                 </button>
               </div>
@@ -660,7 +789,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Job Categories Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 bg-gray-50 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[size:20px_20px] opacity-5"></div>
           <div className="container mx-auto px-4 sm:px-6 relative">
@@ -670,7 +798,7 @@ export default function LandingPage() {
               </div>
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">Explore Jobs by Category</h2>
               <p className="max-w-2xl text-gray-600 text-base sm:text-lg md:text-xl">
-                KaziHub connects workers and employers across a wide range of blue collar industries.
+                KaziHub connects workers and employers across industries.
               </p>
             </div>
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
@@ -678,37 +806,43 @@ export default function LandingPage() {
                 {
                   icon: <HardHat className="h-6 w-6 text-teal-600" />,
                   title: "Construction",
-                  content: "Find jobs in general construction, carpentry, electrical work, plumbing, and more.",
+                  content: "Jobs in construction, carpentry, electrical work.",
+                  category: "construction"
                 },
                 {
                   icon: <PenTool className="h-6 w-6 text-teal-600" />,
                   title: "Manufacturing",
-                  content: "Explore opportunities in production, assembly, machine operation, and quality control.",
+                  content: "Opportunities in production, assembly.",
+                  category: "manufacturing"
                 },
                 {
                   icon: <Wrench className="h-6 w-6 text-teal-600" />,
                   title: "Maintenance",
-                  content: "Find maintenance, repair, janitorial, and facilities management positions.",
+                  content: "Maintenance, repair, janitorial positions.",
+                  category: "maintenance"
                 },
                 {
                   icon: <Hammer className="h-6 w-6 text-teal-600" />,
                   title: "Skilled Trades",
-                  content: "Connect with employers looking for welders, electricians, HVAC technicians, and more.",
+                  content: "Welders, electricians, HVAC technicians.",
+                  category: "skilled-trades"
                 },
                 {
                   icon: <TruckIcon className="h-6 w-6 text-teal-600" />,
                   title: "Transportation",
-                  content: "Find jobs for drivers, delivery personnel, warehouse workers, and logistics staff.",
+                  content: "Drivers, delivery, warehouse workers.",
+                  category: "transportation"
                 },
                 {
                   icon: <Shield className="h-6 w-6 text-teal-600" />,
                   title: "Security",
-                  content: "Explore security guard, loss prevention, and safety officer positions.",
+                  content: "Security guard, safety officer positions.",
+                  category: "security"
                 },
               ].map((category, index) => (
                 <div
                   key={index}
-                  className="bg-white p-6 border rounded-lg shadow-sm hover:shadow-md transition-shadow transform hover:scale-105 duration-300"
+                  className="bg-white p-6 border rounded-lg shadow-sm card-3d"
                 >
                   <div className="mb-4 flex flex-row items-center gap-4">
                     <div className="rounded-full bg-teal-100 p-2 transition-all group-hover:bg-teal-200">
@@ -720,26 +854,28 @@ export default function LandingPage() {
                     <p>{category.content}</p>
                   </div>
                   <div className="mt-4">
-                    <Link
-                      href="#"
+                    <button
+                      onClick={() => handleCategoryClick(category.category)}
                       className="text-teal-600 hover:text-teal-700 text-sm font-medium group flex items-center"
                     >
                       Browse {category.title} Jobs
                       <ChevronRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Link>
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
             <div className="flex justify-center mt-12">
-              <button className="bg-teal-600 text-white hover:bg-teal-700 transition-all hover:shadow-lg hover:scale-105 px-4 py-2 rounded-lg">
+              <button 
+                onClick={() => navigate('/jobs/categories')}
+                className="bg-teal-600 text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg"
+              >
                 View All Categories
               </button>
             </div>
           </div>
         </section>
 
-        {/* Testimonials Section with Horizontal Scroll */}
         <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32 bg-gray-50 overflow-hidden relative">
           <div className="relative w-full h-full">
             <div style={{ ...styles.gradientBlob1, top: "25%", left: "25%" }}></div>
@@ -747,12 +883,12 @@ export default function LandingPage() {
           </div>
           <div className="container mx-auto px-4 sm:px-6 relative">
             <div className="flex flex-col items-center space-y-6 text-center mb-12">
-              <div className="inline-block rounded-full bg-teal-100 px-4 py-1 text-sm font-medium text-teal-800">
+              <div className="inline-block rounded-full bg-teal-100 px-4 py-1 text-sm font-medium text-teal-800 transform transition-all hover:scale-105">
                 Testimonials
               </div>
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">What Our Users Say</h2>
               <p className="max-w-2xl text-gray-600 text-base sm:text-lg md:text-xl">
-                Hear from workers and employers who've found success with KaziHub.
+                Hear from workers and employers on KaziHub.
               </p>
             </div>
             <div className="relative">
@@ -760,11 +896,11 @@ export default function LandingPage() {
                 {doubledTestimonials.map((testimonial, index) => (
                   <div
                     key={index}
-                    className="min-w-[280px] sm:min-w-[320px] mx-3 bg-white rounded-xl shadow-lg p-6 border border-gray-100 transform hover:scale-105 transition-transform duration-300"
+                    className="min-w-[280px] sm:min-w-[320px] mx-3 bg-white rounded-xl shadow-lg p-6 border border-gray-100 card-3d"
                   >
                     <div className="flex items-center gap-4 mb-4">
                       <img
-                        src={testimonial.avatar || "/placeholder.svg"}
+                        src={testimonial.avatar}
                         alt={`${testimonial.name}'s avatar`}
                         className="w-12 h-12 rounded-full object-cover border-2 border-teal-200"
                       />
@@ -787,14 +923,12 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              {/* Gradient overlays for fade effect */}
               <div style={styles.gradientOverlay1}></div>
               <div style={styles.gradientOverlay2}></div>
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 bg-teal-600 relative overflow-hidden">
           <div className="relative w-full h-full">
             <div style={styles.ctaBlob1}></div>
@@ -805,31 +939,30 @@ export default function LandingPage() {
               <div className="space-y-4">
                 <h2 className="text-3xl font-bold tracking-tighter text-white md:text-4xl">Ready to Get Started?</h2>
                 <p className="max-w-[600px] mx-auto text-teal-100 md:text-xl/relaxed">
-                  Join thousands of workers and employers who are already using KaziHub to connect and get work done.
+                  Join thousands using KaziHub to connect and get work done.
                 </p>
               </div>
               <div className="flex flex-col gap-4 sm:flex-row">
-                <Link
-                  href="/jobs"
-                  className="bg-white text-teal-600 hover:bg-teal-50 inline-flex h-11 items-center justify-center transition-all hover:shadow-lg hover:scale-105 px-4 py-2 rounded-lg"
+                <button
+                  onClick={() => navigate('/jobs')}
+                  className="bg-white text-teal-600 hover:bg-teal-50 inline-flex h-11 items-center justify-center button-3d px-4 py-2 rounded-lg"
                 >
                   Find Jobs
                   <ChevronRight className="ml-1 h-4 w-4" />
-                </Link>
-                <Link
-                  href="/post-job"
-                  className="border-white text-white hover:bg-teal-700 transition-all hover:shadow-lg px-4 py-2 rounded-lg border"
+                </button>
+                <button
+                  onClick={() => handleProtectedNavigation('/post-job')}
+                  className="border-white text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg border"
                 >
                   Post a Job
-                </Link>
+                </button>
               </div>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="w-full border-t py-12 md:py-16 bg-gray-50">
+      <footer className={`w-full border-t py-12 md:py-16 bg-gray-50 ${isMobileMenuOpen ? 'content-blur' : ''}`}>
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-4">
@@ -838,7 +971,7 @@ export default function LandingPage() {
                 <span className="text-xl font-bold text-teal-600">KaziHub</span>
               </div>
               <p className="text-gray-500">
-                Connecting blue collar workers with employers for better job opportunities.
+                Connecting blue collar workers with employers.
               </p>
               <div className="flex space-x-4">
                 {[
@@ -847,9 +980,9 @@ export default function LandingPage() {
                   { icon: <Instagram className="h-5 w-5" />, label: "Instagram" },
                   { icon: <Linkedin className="h-5 w-5" />, label: "LinkedIn" },
                 ].map((social, index) => (
-                  <Link
-                    key={index}
-                    href="#"
+                  <Link 
+                    key={index} 
+                    to="#"
                     className="text-gray-500 hover:text-teal-600 transition-colors transform hover:scale-110"
                     aria-label={social.label}
                   >
@@ -865,11 +998,11 @@ export default function LandingPage() {
                 {[
                   { name: "Find Jobs", href: "/jobs" },
                   { name: "Create Profile", href: "/profile" },
-                  { name: "Worker Success Stories", href: "/success-stories" },
+                  { name: "Success Stories", href: "/success-stories" },
                   { name: "Resources", href: "/resources" }
                 ].map((item) => (
                   <li key={item.name}>
-                    <Link href={item.href} className="text-gray-500 hover:text-teal-600 transition-colors">
+                    <Link to={item.href} className="text-gray-500 hover:text-teal-600 transition-colors">
                       {item.name}
                     </Link>
                   </li>
@@ -883,10 +1016,10 @@ export default function LandingPage() {
                   { name: "Post a Job", href: "/post-job" },
                   { name: "Browse Workers", href: "/workers" },
                   { name: "Pricing", href: "/pricing" },
-                  { name: "Enterprise Solutions", href: "/enterprise" }
+                  { name: "Enterprise", href: "/enterprise" }
                 ].map((item) => (
                   <li key={item.name}>
-                    <Link href={item.href} className="text-gray-500 hover:text-teal-600 transition-colors">
+                    <Link to={item.href} className="text-gray-500 hover:text-teal-600 transition-colors">
                       {item.name}
                     </Link>
                   </li>
@@ -903,7 +1036,7 @@ export default function LandingPage() {
                   { name: "Terms of Service", href: "/terms" }
                 ].map((item) => (
                   <li key={item.name}>
-                    <Link href={item.href} className="text-gray-500 hover:text-teal-600 transition-colors">
+                    <Link to={item.href} className="text-gray-500 hover:text-teal-600 transition-colors">
                       {item.name}
                     </Link>
                   </li>
@@ -920,7 +1053,7 @@ export default function LandingPage() {
   )
 }
 
-function TruckIcon(props) {
+function TruckIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
@@ -934,7 +1067,7 @@ function TruckIcon(props) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M10 17h4V5H2v12h3" />
+      <path d="M10 17h4V5H2v12h3m5 0h4" />
       <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
       <circle cx="7.5" cy="17.5" r="2.5" />
       <circle cx="17.5" cy="17.5" r="2.5" />

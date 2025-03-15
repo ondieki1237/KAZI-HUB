@@ -56,9 +56,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Protected Home Route to handle landing vs home page
 const ProtectedHomeRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   
-  if (!user) {
+  if (!isAuthenticated || !user) {
     return <LandingPage />;
   }
   
@@ -79,6 +79,7 @@ function App() {
               </ProtectedHomeRoute>
             } 
           />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/post-job" element={<PostJob />} />
