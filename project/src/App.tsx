@@ -31,6 +31,7 @@ import AdminSkills from './pages/admin/Skills';
 import AppliedJobs from './pages/AppliedJobs';
 import LandingPage from './pages/LandingPage';
 import Notifications from './pages/Notifications';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Protected Admin Route
 const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -67,95 +68,84 @@ const ProtectedHomeRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Toaster position="top-right" />
-        <Routes>
-          <Route 
-            path="/" 
-            element={
+    <Router>
+      <AuthProvider>
+        <NotificationProvider>
+          <Toaster position="top-right" />
+          <Routes>
+            <Route path="/" element={
               <ProtectedHomeRoute>
                 <Home />
               </ProtectedHomeRoute>
-            } 
-          />
-          <Route path="/landing" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/post-job" element={<PostJob />} />
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
-          <Route path="/jobs" element={<Jobs />} />
-          <Route path="/wallet" element={<Wallet />} />
-          <Route path="/jobs/create" element={<CreateJob />} />
-          <Route path="/jobs/my-posted" element={<SeeMyPostedJobs />} />
-          <Route path="/cv-maker" element={<CVMaker />} />
-          <Route path="/jobs/:jobId" element={<JobDetail />} />
-          <Route path="/profile/my-profile" element={<MyProfile />} />
-          <Route path="/messages" element={<Conversations />} />
-          <Route path="/chat/:jobId/:userId" element={<Chat />} />
-          <Route path="/jobs/:jobId/applications" element={<ViewApplications />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/payment/:jobId/:workerId" element={<Payment />} />
-          <Route path="/post-skill" element={<PostMySkill />} />
-          <Route path="/find-skill" element={<FindSkill />} />
-          <Route path="/skill/:skillId" element={<SkillDetail />} />
-          <Route path="/skill-chat/:skillId/:userId" element={<SkillChat />} />
-          <Route 
-            path="/admin" 
-            element={
+            } />
+            <Route path="/home" element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            } />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/post-job" element={
+              <ProtectedRoute>
+                <PostJob />
+              </ProtectedRoute>
+            } />
+            <Route path="/wallet" element={<Wallet />} />
+            <Route path="/jobs/create" element={<CreateJob />} />
+            <Route path="/jobs/my-posted" element={<SeeMyPostedJobs />} />
+            <Route path="/cv-maker" element={<CVMaker />} />
+            <Route path="/jobs/:jobId" element={<JobDetail />} />
+            <Route path="/profile/my-profile" element={<MyProfile />} />
+            <Route path="/messages" element={<Conversations />} />
+            <Route path="/chat/:jobId/:userId" element={<Chat />} />
+            <Route path="/jobs/:jobId/applications" element={<ViewApplications />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/payment/:jobId/:workerId" element={<Payment />} />
+            <Route path="/post-skill" element={<PostMySkill />} />
+            <Route path="/find-skill" element={<FindSkill />} />
+            <Route path="/skill/:skillId" element={<SkillDetail />} />
+            <Route path="/skill-chat/:skillId/:userId" element={<SkillChat />} />
+            <Route path="/admin" element={
               <ProtectedAdminRoute>
                 <AdminDashboard />
               </ProtectedAdminRoute>
-            } 
-          />
-          <Route 
-            path="/admin/users" 
-            element={
+            } />
+            <Route path="/admin/users" element={
               <ProtectedAdminRoute>
                 <AdminUsers />
               </ProtectedAdminRoute>
-            } 
-          />
-          <Route 
-            path="/admin/jobs" 
-            element={
+            } />
+            <Route path="/admin/jobs" element={
               <ProtectedAdminRoute>
                 <AdminJobs />
               </ProtectedAdminRoute>
-            } 
-          />
-          <Route 
-            path="/admin/skills" 
-            element={
+            } />
+            <Route path="/admin/skills" element={
               <ProtectedAdminRoute>
                 <AdminSkills />
               </ProtectedAdminRoute>
-            } 
-          />
-          <Route 
-            path="/applied-jobs" 
-            element={
+            } />
+            <Route path="/applied-jobs" element={
               <ProtectedRoute>
                 <AppliedJobs />
               </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/notifications" 
-            element={
+            } />
+            <Route path="/notifications" element={
               <ProtectedRoute>
                 <Notifications />
               </ProtectedRoute>
-            } 
-          />
-        </Routes>
-      </Router>
-    </AuthProvider>
+            } />
+          </Routes>
+        </NotificationProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

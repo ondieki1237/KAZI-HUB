@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect, useRef } from "react"
 import { Link, useNavigate } from 'react-router-dom'
 import { Briefcase, ChevronRight, Facebook, Hammer, HardHat, Instagram, Linkedin, PenTool, Search, Shield, Star, Twitter, Wrench, Menu, X } from 'lucide-react'
@@ -443,26 +441,26 @@ export default function LandingPage() {
                       to={item.href} 
                       className="relative py-2 inline-block group"
                     >
-                      <span className="text-lg font-medium text-white transition-colors duration-300 group-hover:text-teal-100">
+                      <span className="text-lg font-medium text-white opacity-90 transition-all duration-300 group-hover:opacity-100">
                         {item.name}
                       </span>
-                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
+                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white opacity-0 transition-all duration-300 group-hover:w-full group-hover:opacity-100"></span>
                     </Link>
                   </li>
                 ))}
               </ul>
-            </div>
+          </div>
 
             <div className="hidden md:flex items-center gap-6">
               <Link 
                 to="/login" 
-                className="text-white hover:text-teal-100 font-medium transition-colors"
+                className="text-white opacity-90 hover:opacity-100 font-medium transition-all duration-300"
               >
                 Log in
               </Link>
               <button
                 onClick={() => navigate('/register')}
-                className="bg-white text-teal-600 px-6 py-2 rounded-lg font-medium button-3d"
+                className="bg-transparent border-2 border-white text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-white hover:text-teal-600"
               >
                 Sign Up
               </button>
@@ -511,18 +509,18 @@ export default function LandingPage() {
                   to="/login"
                   className="block text-white hover:text-teal-100 font-medium py-2"
                   onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Log in
-                </Link>
+              >
+                Log in
+            </Link>
               </li>
               <li>
                 <Link
                   to="/register"
                   className="block bg-white text-teal-600 px-4 py-2 rounded-lg font-medium button-3d"
                   onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sign Up
-                </Link>
+              >
+                Sign Up
+            </Link>
               </li>
             </ul>
           </div>
@@ -552,14 +550,14 @@ export default function LandingPage() {
                     onClick={() => navigate('/jobs')}
                     className="group bg-teal-600 text-white hover:bg-teal-700 inline-flex items-center justify-center button-3d px-8 py-3 rounded-lg text-lg"
                   >
-                    Find Jobs
+                      Find Jobs
                     <ChevronRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </button>
                   <button 
                     onClick={() => handleProtectedNavigation('/post-job')}
                     className="border-2 border-teal-600 text-teal-600 hover:bg-teal-50 button-3d px-8 py-3 rounded-lg text-lg inline-flex items-center justify-center"
-                  >
-                    Post a Job
+                    >
+                      Post a Job
                   </button>
                 </div>
               </div>
@@ -718,7 +716,7 @@ export default function LandingPage() {
                   onClick={() => handleProtectedNavigation('/profile/create')}
                   className="bg-teal-600 text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg"
                 >
-                  Create Worker Profile
+                    Create Worker Profile
                 </button>
               </div>
             </div>
@@ -774,7 +772,7 @@ export default function LandingPage() {
                   onClick={() => handleProtectedNavigation('/post-job')}
                   className="bg-teal-600 text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg"
                 >
-                  Post a Job
+                    Post a Job
                 </button>
               </div>
               <div className="relative rounded-xl overflow-hidden shadow-2xl transition-transform hover:scale-[1.02] order-1 lg:order-2">
@@ -870,7 +868,7 @@ export default function LandingPage() {
                 onClick={() => navigate('/jobs/categories')}
                 className="bg-teal-600 text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg"
               >
-                View All Categories
+                  View All Categories
               </button>
             </div>
           </div>
@@ -916,9 +914,9 @@ export default function LandingPage() {
                           <Star
                             key={i}
                             className={i < testimonial.rating ? "text-yellow-400 fill-yellow-400 h-5 w-5" : "text-gray-300 h-5 w-5"}
-                          />
-                        ))}
-                    </div>
+                  />
+                ))}
+              </div>
                     <p className="text-gray-600 italic text-sm sm:text-base">"{testimonial.quote}"</p>
                   </div>
                 ))}
@@ -946,15 +944,15 @@ export default function LandingPage() {
                 <button
                   onClick={() => navigate('/jobs')}
                   className="bg-white text-teal-600 hover:bg-teal-50 inline-flex h-11 items-center justify-center button-3d px-4 py-2 rounded-lg"
-                >
-                  Find Jobs
-                  <ChevronRight className="ml-1 h-4 w-4" />
+                  >
+                    Find Jobs
+                    <ChevronRight className="ml-1 h-4 w-4" />
                 </button>
                 <button
                   onClick={() => handleProtectedNavigation('/post-job')}
                   className="border-white text-white hover:bg-teal-700 button-3d px-4 py-2 rounded-lg border"
-                >
-                  Post a Job
+                  >
+                    Post a Job
                 </button>
               </div>
             </div>
@@ -982,7 +980,7 @@ export default function LandingPage() {
                 ].map((social, index) => (
                   <Link 
                     key={index} 
-                    to="#"
+                    to="#" 
                     className="text-gray-500 hover:text-teal-600 transition-colors transform hover:scale-110"
                     aria-label={social.label}
                   >

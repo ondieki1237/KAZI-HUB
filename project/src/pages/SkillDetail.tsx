@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Home, User, Users, Clock, DollarSign, Phone, Globe, Mail, MapPin, Image as ImageIcon, Bell, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Footer from '../components/Footer';
@@ -104,6 +104,10 @@ const SkillDetail: React.FC = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
               <Menu onLogout={handleLogout} />
+              <Link to="/" className="flex items-center space-x-2 text-white hover:text-teal-100 transition-colors">
+                <Home className="h-6 w-6" />
+                <span className="font-medium">Home</span>
+              </Link>
               <h1 className="text-2xl font-bold">BlueCollar</h1>
             </div>
             <div className="flex items-center space-x-4">

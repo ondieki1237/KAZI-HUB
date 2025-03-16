@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Home, Search, User, Users, Clock, DollarSign, Phone, Globe, Mail, MapPin, Image } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Footer from '../components/Footer';
-import './FindSkill.css'; // Optional CSS for custom styling
 import { skills as skillsApi } from '../services/api';
 
 // Define the Skill type based on PostMySkill data structure
@@ -57,11 +56,11 @@ const FindSkill: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white shadow-sm">
-        <h1 className="text-xl font-semibold text-gray-800">Find a Skill</h1>
+      <div className="flex items-center justify-between p-4 bg-teal-500 shadow-md">
+        <h1 className="text-xl font-semibold text-white">Find a Skill</h1>
         <button
           onClick={() => navigate('/')}
-          className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900"
+          className="flex items-center px-4 py-2 text-white hover:text-gray-100 transition-colors"
         >
           <Home className="h-5 w-5 mr-2" />
           Home
@@ -79,7 +78,11 @@ const FindSkill: React.FC = () => {
               placeholder="Search skills, group names, or locations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+              style={{
+                borderColor: '#e5e7eb',
+                fontSize: '1rem',
+              }}
             />
           </div>
         </div>
@@ -90,9 +93,12 @@ const FindSkill: React.FC = () => {
         ) : filteredSkills.length === 0 ? (
           <div className="text-center text-gray-600">No skills found</div>
         ) : (
-          <div className="grid gap-6 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSkills.map((skill) => (
-              <div key={skill._id} className="bg-white p-4 rounded-lg shadow-md">
+              <div
+                key={skill._id}
+                className="bg-white p-4 rounded-lg shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-1"
+              >
                 {/* Skill Header */}
                 <div className="flex items-center gap-2 mb-2">
                   {skill.isGroup ? (
@@ -123,7 +129,13 @@ const FindSkill: React.FC = () => {
                       <Image className="h-4 w-4" />
                       <span>Past Work:</span>
                     </div>
-                    <div className="flex gap-2 mt-1 overflow-x-auto">
+                    <div
+                      className="flex gap-2 mt-1 overflow-x-auto"
+                      style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#14b8a6 #e5e7eb',
+                      }}
+                    >
                       {skill.pastWorkFiles.map((fileUrl, index) => (
                         <img
                           key={index}
@@ -137,7 +149,7 @@ const FindSkill: React.FC = () => {
                 )}
 
                 {/* Contact Info */}
-                <div className="text-gray-600 text-sm">
+                <div className="text-gray-600 text-sm mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4" />
                     <span>{skill.contact.phone}</span>
@@ -145,7 +157,12 @@ const FindSkill: React.FC = () => {
                   {skill.contact.website && (
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4" />
-                      <a href={skill.contact.website} target="_blank" rel="noopener noreferrer" className="text-teal-500 hover:underline">
+                      <a
+                        href={skill.contact.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-500 hover:underline"
+                      >
                         {skill.contact.website}
                       </a>
                     </div>
@@ -165,7 +182,7 @@ const FindSkill: React.FC = () => {
                 {/* Contact Button */}
                 <button
                   onClick={() => navigate(`/skill/${skill._id}`)}
-                  className="mt-3 w-full bg-teal-500 text-white py-2 rounded hover:bg-teal-600 transition-colors"
+                  className="mt-3 w-full bg-teal-500 text-white py-2 rounded-lg hover:bg-teal-600 transition-colors"
                 >
                   See More
                 </button>

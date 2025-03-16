@@ -9,21 +9,7 @@ function FeaturedJobs() {
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]); // Displayed jobs
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sliceLimit, setSliceLimit] = useState(5); // Default to 5 for mobile
-
-  // Update slice limit based on viewport width
-  const updateSliceLimit = () => {
-    const isDesktop = window.innerWidth >= 768; // Tailwind 'md' breakpoint
-    setSliceLimit(isDesktop ? 10 : 5);
-    console.log('Slice limit updated to:', isDesktop ? 10 : 5);
-  };
-
-  // Set initial slice limit and listen for resize
-  useEffect(() => {
-    updateSliceLimit(); // Set on mount
-    window.addEventListener('resize', updateSliceLimit);
-    return () => window.removeEventListener('resize', updateSliceLimit);
-  }, []);
+  const sliceLimit = 10; // Show 10 jobs
 
   // Fetch all featured jobs once
   useEffect(() => {
@@ -42,6 +28,8 @@ function FeaturedJobs() {
           setFeaturedJobs([]);
         } else {
           setAllJobs(jobsData); // Store all jobs
+          // Immediately set featured jobs with the correct slice
+          setFeaturedJobs(jobsData.slice(0, sliceLimit));
         }
         setError(null);
       } catch (error) {
@@ -56,14 +44,14 @@ function FeaturedJobs() {
     fetchFeaturedJobs();
   }, []); // Run once on mount
 
-  // Update displayed jobs when sliceLimit or allJobs changes
+  // Update displayed jobs when allJobs changes
   useEffect(() => {
     if (allJobs.length > 0) {
       const slicedJobs = allJobs.slice(0, sliceLimit);
       console.log('Sliced jobs for display:', slicedJobs);
       setFeaturedJobs(slicedJobs);
     }
-  }, [allJobs, sliceLimit]);
+  }, [allJobs]); // Remove sliceLimit from dependencies since it's now a constant
 
   if (loading) {
     return (

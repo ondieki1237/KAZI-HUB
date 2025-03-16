@@ -58,12 +58,29 @@ export interface Category {
 }
 
 export interface Message {
-  id: string;
-  senderId: string;
-  receiverId: string;
+  _id: string;
+  jobId: string;
+  jobTitle: string;
+  senderId: {
+    _id: string;
+    name: string;
+  };
+  recipientId: {
+    _id: string;
+    name: string;
+  };
   content: string;
-  createdAt: string;
   read: boolean;
+  createdAt: string;
+}
+
+export interface Notification {
+  type: 'message' | 'jobAccepted' | 'jobRejected';
+  _id: string;
+  jobId: string;
+  jobTitle: string;
+  message?: string;
+  content?: string;
 }
 
 export interface Chat {

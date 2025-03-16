@@ -15,7 +15,7 @@ function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/home');
     }
   }, [isAuthenticated, navigate]);
 
@@ -28,7 +28,7 @@ function Login() {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       toast.success('Login successful!');
-      navigate('/');
+      navigate('/home');
     } catch (error) {
       toast.error('Login failed');
     }
