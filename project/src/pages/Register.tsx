@@ -18,6 +18,7 @@ const Register: React.FC = () => {
     location: '',
     role: 'worker' as 'worker' | 'employer'
   });
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false); // State for success pop-up
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -60,8 +61,14 @@ const Register: React.FC = () => {
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         
-        toast.success('Registration successful! Welcome to BlueCollar');
-        navigate('/');
+        // Show success pop-up
+        setShowSuccessPopup(true);
+        
+        // Hide pop-up and navigate after animation (e.g., 3 seconds)
+        setTimeout(() => {
+          setShowSuccessPopup(false);
+          navigate('/login');
+        }, 3000);
       } else {
         throw new Error('Invalid response from server');
       }
@@ -78,7 +85,7 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       <PageHeader title="Create Account" />
       
       <main className="container mx-auto px-4 py-8">
@@ -256,6 +263,48 @@ const Register: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Success Pop-up */}
+      {showSuccessPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 shadow-lg transform transition-all duration-500 ease-out animate-pop-in"
+               style={{ animation: 'popIn 0.5s ease-out forwards' }}>
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-teal-600 mb-2">Sign up was successful! 🎉</h3>
+              <p className="text-lg text-gray-700 mb-4">Welcome 😊</p>
+              <Link
+                to="/login"
+                className="inline-block bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors"
+                onClick={() => setShowSuccessPopup(false)}
+              >
+                Log in
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSS Animation for Pop-up */}
+      <style>{`
+        @keyframes popIn {
+          0% {
+            transform: scale(0.7);
+            opacity: 0;
+          }
+          50% {
+            transform: scale(1.05);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        .animate-pop-in {
+          animation: popIn 0.5s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 };
