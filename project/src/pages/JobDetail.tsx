@@ -52,8 +52,8 @@ const JobDetail: React.FC = () => {
   const [loadingCVs, setLoadingCVs] = useState(true);
 
   useEffect(() => {
-    console.log('Current auth state:', { 
-      isLoggedIn: !!authUser, 
+    console.log('Current auth state:', {
+      isLoggedIn: !!authUser,
       user: authUser,
       token: localStorage.getItem('token')
     });
@@ -62,12 +62,16 @@ const JobDetail: React.FC = () => {
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
+        if (!jobId || !authUser) {
+          console.warn('Job ID or user not available yet.');
+          return;
+        }
         setLoading(true);
         setError(null);
         if (!jobId) {
           throw new Error('Invalid job ID');
         }
-        console.log('Fetching job details for ID:', jobId); // Debug log
+        console.log('Fetching job details for ID:', jobId, 'UserID:', authUser?._id); // Debug log
         const response = await jobs.getById(jobId);
         if (!response || !response._id) {
           throw new Error('Invalid job data received');
@@ -76,7 +80,7 @@ const JobDetail: React.FC = () => {
         
         // Check if user has already applied
         const userApplication = response.applications?.find(
-          (app: { workerId: string }) => app.workerId === authUser.id
+          (app: { workerId: string }) => app.workerId === authUser._id
         );
         setHasApplied(!!userApplication);
       } catch (error: any) {
@@ -89,16 +93,17 @@ const JobDetail: React.FC = () => {
         setLoading(false);
       }
     };
-    fetchJobDetails();
+    if (authUser) {
+      fetchJobDetails();
+    }
   }, [jobId, authUser]);
 
   useEffect(() => {
     const fetchUserCVs = async () => {
       if (!authUser) return;
-      
       try {
         setLoadingCVs(true);
-        const response = await profiles.getUserDocuments(authUser.id);
+        const response = await profiles.getUserDocuments(authUser._id);
         setUserCVs(response.filter(doc => doc.type === 'cv'));
       } catch (error) {
         console.error('Error fetching CVs:', error);
@@ -106,7 +111,6 @@ const JobDetail: React.FC = () => {
         setLoadingCVs(false);
       }
     };
-
     fetchUserCVs();
   }, [authUser]);
 
@@ -121,47 +125,40 @@ const JobDetail: React.FC = () => {
 
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!authUser) {
       toast.error('Please login to apply for jobs');
       navigate('/login');
       return;
     }
-
-    if (job && authUser.id === job.employerId._id) {
+    if (job && authUser._id === job.employerId._id) {
       toast.error('You cannot apply to your own job');
       return;
     }
-
     if (!applicationMessage.trim()) {
       toast.error('Please write a message to the employer');
       return;
     }
-
     if (documents.length === 0 && userCVs.length === 0) {
       toast.error('Please attach at least one CV document');
       return;
     }
-
     try {
       setApplying(true);
-      
       // Upload new documents if any
       const uploadedDocs = [];
       for (const file of documents) {
         const formData = new FormData();
         formData.append('document', file);
         formData.append('type', 'cv');
-        const uploadedDoc = await profiles.uploadDocument(authUser.id, file, 'cv');
+        const uploadedDoc = await profiles.uploadDocument(authUser._id, file, 'cv');
         uploadedDocs.push(uploadedDoc._id);
       }
-
-      // Submit application with documents
-      await jobs.apply(jobId!, { 
+      // Submit application with userId included
+      await jobs.apply(jobId!, {
+        userId: authUser._id,  // Include user ID in the request
         message: applicationMessage,
         documents: [...uploadedDocs, ...userCVs.map(cv => cv._id)]
       });
-
       setHasApplied(true);
       setShowApplicationForm(false);
       toast.success('Application submitted successfully!');
@@ -234,7 +231,6 @@ const JobDetail: React.FC = () => {
         rows={4}
         required
       />
-
       {/* CV Section */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
@@ -248,7 +244,6 @@ const JobDetail: React.FC = () => {
             </Link>
           )}
         </div>
-
         {/* Existing CVs */}
         {loadingCVs ? (
           <div className="text-center py-4">
@@ -279,7 +274,6 @@ const JobDetail: React.FC = () => {
             <p className="text-gray-600">No CV found in your profile</p>
           </div>
         )}
-
         {/* Upload New Documents */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -299,7 +293,6 @@ const JobDetail: React.FC = () => {
             </label>
           </div>
         </div>
-
         {/* Selected Files List */}
         {documents.length > 0 && (
           <div className="space-y-2">
@@ -321,7 +314,6 @@ const JobDetail: React.FC = () => {
           </div>
         )}
       </div>
-
       <div className="flex space-x-3">
         <button
           type="submit"
@@ -355,7 +347,6 @@ const JobDetail: React.FC = () => {
             Back to Jobs
           </button>
         </div>
-
         {/* Job Header */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="bg-gradient-to-r from-teal-dark to-teal-medium text-white p-6">
@@ -379,7 +370,6 @@ const JobDetail: React.FC = () => {
               </div>
             </div>
           </div>
-
           {/* Job Content */}
           <div className="p-6">
             {/* Status Badge */}
@@ -396,13 +386,11 @@ const JobDetail: React.FC = () => {
                 {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
               </span>
             </div>
-
             {/* Description */}
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-3">Description</h2>
               <p className="text-gray-600 whitespace-pre-wrap">{job.description}</p>
             </div>
-
             {/* Required Skills */}
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-3">Required Skills</h2>
@@ -417,7 +405,6 @@ const JobDetail: React.FC = () => {
                 ))}
               </div>
             </div>
-
             {/* Employer Info */}
             {job.employerId && (
               <div className="mb-6">
@@ -433,7 +420,6 @@ const JobDetail: React.FC = () => {
                 </div>
               </div>
             )}
-
             {/* Application Section */}
             <div className="mt-6 space-y-4">
               {hasApplied ? (
@@ -469,7 +455,6 @@ const JobDetail: React.FC = () => {
                   )}
                 </>
               )}
-
               {/* Contact Employer Button - always show if user is logged in and not the job poster */}
               {authUser && authUser.id !== job.employerId._id && (
                 <button

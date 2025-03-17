@@ -1,10 +1,8 @@
-"use client"
+"use client";
 
-// components/menu.tsx
-
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
-import { useNavigate } from 'react-router-dom';
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Bell,
   MessageSquare,
@@ -18,94 +16,321 @@ import {
   Briefcase,
   X,
   Home,
-} from 'lucide-react';
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
-// Placeholder for DesktopNav (assuming it exists or will be implemented)
+// Interface for menu items with descriptions
+interface MenuItem {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  path: string;
+  description: string;
+}
+
+interface MenuSection {
+  title: string;
+  items: MenuItem[];
+}
+
 const DesktopNav: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isAuthenticated = !!user._id;
 
-  const desktopMenuItems = [
-    // Common Items (shown to all)
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [hoveredSignIn, setHoveredSignIn] = useState(false);
+  const [hoveredTryFree, setHoveredTryFree] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const desktopMenuItems: MenuSection[] = [
     {
-      title: 'Navigation',
+      title: "Navigation",
       items: [
-        { icon: Home, label: 'Home', path: '/' },
-        { icon: Briefcase, label: 'Find Jobs', path: '/jobs' },
+        { icon: Home, label: "Home", path: "/", description: "Return to the homepage" },
+        { icon: Briefcase, label: "Find Jobs", path: "/jobs", description: "Search for jobs in your area" },
       ],
     },
-    // Authenticated User Items
     ...(isAuthenticated
       ? [
           {
-            title: 'Job Management',
+            title: "Job Management",
             items: [
-              { icon: PlusCircle, label: 'Post a Job', path: '/jobs/create' },
-              { icon: FileText, label: 'My Posted Jobs', path: '/jobs/my-posted' },
-              { icon: Briefcase, label: 'Applied Jobs', path: '/applied-jobs' },
+              { icon: PlusCircle, label: "Post a Job", path: "/jobs/create", description: "Hire skilled workers" },
+              { icon: FileText, label: "My Posted Jobs", path: "/jobs/my-posted", description: "Manage your job postings" },
+              { icon: Briefcase, label: "Applied Jobs", path: "/applied-jobs", description: "Track your applications" },
             ],
           },
           {
-            title: 'Tools & Resources',
+            title: "Tools & Resources",
             items: [
-              { icon: FileText, label: 'CV Maker', path: '/cv-maker' },
-              { icon: MessageSquare, label: 'Messages', path: '/messages' },
-              { icon: CreditCard, label: 'Wallet', path: '/wallet' },
-              { icon: Bell, label: 'Notifications', path: '/notifications' },
+              { icon: FileText, label: "CV Maker", path: "/cv-maker", description: "Create your professional CV" },
+              { icon: MessageSquare, label: "Messages", path: "/messages", description: "Communicate with others" },
+              { icon: CreditCard, label: "Wallet", path: "/wallet", description: "Manage earnings and payments" },
+              { icon: Bell, label: "Notifications", path: "/notifications", description: "View your latest alerts" },
             ],
           },
           {
-            title: 'Account',
+            title: "Account",
             items: [
-              { icon: User, label: 'Profile', path: '/profile/my-profile' },
-              { icon: Settings, label: 'Settings', path: '/settings' },
-              { icon: HelpCircle, label: 'Help', path: '/help' },
+              { icon: User, label: "Profile", path: "/profile/my-profile", description: "Edit your personal details" },
+              { icon: Settings, label: "Settings", path: "/settings", description: "Customize your preferences" },
+              { icon: HelpCircle, label: "Help", path: "/help", description: "Get assistance with any issues" },
+              { icon: LogOut, label: "Logout", path: "#", description: "Sign out of your account", onClick: onLogout },
             ],
           },
         ]
       : [
-          // Non-authenticated User Items
           {
-            title: 'Account',
+            title: "Account",
             items: [
-              { icon: User, label: 'Login', path: '/login' },
-              { icon: FileText, label: 'CV Maker', path: '/cv-maker' },
-              { icon: HelpCircle, label: 'Help', path: '/help' },
+              { icon: User, label: "Login", path: "/login", description: "Sign in to your account" },
+              { icon: FileText, label: "CV Maker", path: "/cv-maker", description: "Create your professional CV" },
+              { icon: HelpCircle, label: "Help", path: "/help", description: "Get assistance with any issues" },
             ],
           },
         ]),
   ];
 
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <nav className="bg-white shadow-md p-4">
-      <ul className="flex space-x-6">
-        {desktopMenuItems.map((section, idx) =>
-          section.items.map((item, index) => (
-            <li key={`${idx}-${index}`}>
-              <button
-                onClick={() => navigate(item.path)}
-                className="flex items-center space-x-2 text-gray-700 hover:text-blue-500"
-              >
-                <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </button>
-            </li>
-          ))
-        )}
-        {isAuthenticated && (
-          <li>
+    <>
+      <style>
+        {`
+          @keyframes slideDown {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .animate-slideDown {
+            animation: slideDown 0.3s ease forwards;
+          }
+        `}
+      </style>
+
+      <nav
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          transition: "all 0.3s ease",
+          padding: scrolled ? "8px 0" : "12px 0",
+          boxShadow: scrolled ? "0 4px 12px rgba(0, 0, 0, 0.15)" : "0 2px 8px rgba(0, 0, 0, 0.1)",
+          background: "transparent",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1400px",
+            margin: "0 auto",
+            padding: "0 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* Navigation Items */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "24px",
+            }}
+          >
+            {desktopMenuItems.map((section, idx) => (
+              <div key={idx} style={{ position: "relative" }}>
+                <button
+                  onClick={() => setActiveDropdown(activeDropdown === section.title ? null : section.title)}
+                  onMouseEnter={() => setHoveredItem(section.title)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    color: hoveredItem === section.title ? "#E0F2F1" : "#FFFFFF",
+                    fontSize: "15px",
+                    fontWeight: 500,
+                    fontFamily: "'Euclid Circular A', 'Inter', 'Helvetica Neue', Arial, sans-serif",
+                    padding: "8px 0",
+                    transition: "color 0.2s ease",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span>{section.title}</span>
+                  {activeDropdown === section.title ? (
+                    <ChevronUp style={{ width: "14px", height: "14px", color: "#FFFFFF" }} />
+                  ) : (
+                    <ChevronDown style={{ width: "14px", height: "14px", color: "#FFFFFF" }} />
+                  )}
+                </button>
+
+                {/* Dropdown */}
+                {activeDropdown === section.title && (
+                  <div
+                    ref={dropdownRef}
+                    className="animate-slideDown"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      marginTop: "8px",
+                      background: "#FFFFFF",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                      minWidth: "300px",
+                      maxWidth: "600px",
+                      zIndex: 50,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "16px",
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                        gap: "16px",
+                      }}
+                    >
+                      {section.items.map((item, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            if (item.onClick) {
+                              item.onClick();
+                            } else {
+                              navigate(item.path);
+                            }
+                            setActiveDropdown(null);
+                          }}
+                          onMouseEnter={() => setHoveredItem(`${section.title}-${item.label}`)}
+                          onMouseLeave={() => setHoveredItem(null)}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "12px",
+                            padding: "12px",
+                            borderRadius: "8px",
+                            background: hoveredItem === `${section.title}-${item.label}` ? "#E0F2F1" : "transparent",
+                            transition: "background 0.2s ease",
+                            border: "none",
+                            cursor: "pointer",
+                            textAlign: "left",
+                          }}
+                        >
+                          <item.icon
+                            style={{
+                              width: "20px",
+                              height: "20px",
+                              flexShrink: 0,
+                              color: "#26A69A",
+                            }}
+                          />
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: item.label === "Logout" ? (hoveredItem === `${section.title}-${item.label}` ? "#DC2626" : "#000000") : (hoveredItem === `${section.title}-${item.label}` ? "#26A69A" : "#000000"),
+                                fontFamily: "'Euclid Circular A', 'Inter', 'Helvetica Neue', Arial, sans-serif",
+                                transition: "color 0.2s ease",
+                              }}
+                            >
+                              {item.label}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                color: "#000000",
+                                marginTop: "4px",
+                                fontFamily: "'Euclid Circular A', 'Inter', 'Helvetica Neue', Arial, sans-serif",
+                              }}
+                            >
+                              {item.description}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Right Side Actions */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+            }}
+          >
             <button
-              onClick={onLogout}
-              className="flex items-center space-x-2 text-red-600 hover:text-red-800"
+              onClick={() => navigate("/login")}
+              onMouseEnter={() => setHoveredSignIn(true)}
+              onMouseLeave={() => setHoveredSignIn(false)}
+              style={{
+                color: hoveredSignIn ? "#E0F2F1" : "#FFFFFF",
+                fontSize: "14px",
+                fontWeight: 500,
+                fontFamily: "'Euclid Circular A', 'Inter', 'Helvetica Neue', Arial, sans-serif",
+                transition: "color 0.2s ease",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
-              <LogOut className="h-5 w-5" />
-              <span>Logout</span>
+              Sign In
             </button>
-          </li>
-        )}
-      </ul>
-    </nav>
+
+            <button
+              onClick={() => navigate("/signup")}
+              onMouseEnter={() => setHoveredTryFree(true)}
+              onMouseLeave={() => setHoveredTryFree(false)}
+              style={{
+                background: hoveredTryFree ? "#4DB6AC" : "#26A69A",
+                color: "#FFFFFF",
+                fontSize: "14px",
+                fontWeight: 600,
+                fontFamily: "'Euclid Circular A', 'Inter', 'Helvetica Neue', Arial, sans-serif",
+                padding: "8px 16px",
+                borderRadius: "4px",
+                transition: "background 0.2s ease",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Try Free
+            </button>
+          </div>
+        </div>
+      </nav>
+    </>
   );
 };
 
@@ -115,91 +340,78 @@ interface MenuProps {
 
 const Menu: React.FC<MenuProps> = ({ onLogout }) => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isAuthenticated = !!user._id;
 
   const [isOpen, setIsOpen] = useState(false);
   const [isDesktopView, setIsDesktopView] = useState(false);
-  const menuContentRef = useRef<HTMLDivElement>(null); // Ref for mobile menu content height
+  const menuContentRef = useRef<HTMLDivElement>(null);
 
   const menuItems = [
-    // Common Items (shown to all)
     {
-      title: 'Navigation',
+      title: "Navigation",
       items: [
-        { icon: Home, label: 'Home', path: '/' },
-        { icon: Briefcase, label: 'Find Jobs', path: '/jobs' },
+        { icon: Home, label: "Home", path: "/" },
+        { icon: Briefcase, label: "Find Jobs", path: "/jobs" },
       ],
     },
-    // Authenticated User Items
     ...(isAuthenticated
       ? [
           {
-            title: 'Job Management',
+            title: "Job Management",
             items: [
-              { icon: PlusCircle, label: 'Post a Job', path: '/jobs/create' },
-              { icon: FileText, label: 'My Posted Jobs', path: '/jobs/my-posted' },
-              { icon: Briefcase, label: 'Applied Jobs', path: '/applied-jobs' },
+              { icon: PlusCircle, label: "Post a Job", path: "/jobs/create" },
+              { icon: FileText, label: "My Posted Jobs", path: "/jobs/my-posted" },
+              { icon: Briefcase, label: "Applied Jobs", path: "/applied-jobs" },
             ],
           },
           {
-            title: 'Tools & Resources',
+            title: "Tools & Resources",
             items: [
-              { icon: FileText, label: 'CV Maker', path: '/cv-maker' },
-              { icon: MessageSquare, label: 'Messages', path: '/messages' },
-              { icon: CreditCard, label: 'Wallet', path: '/wallet' },
-              { icon: Bell, label: 'Notifications', path: '/notifications' },
+              { icon: FileText, label: "CV Maker", path: "/cv-maker" },
+              { icon: MessageSquare, label: "Messages", path: "/messages" },
+              { icon: CreditCard, label: "Wallet", path: "/wallet" },
+              { icon: Bell, label: "Notifications", path: "/notifications" },
             ],
           },
           {
-            title: 'Account',
+            title: "Account",
             items: [
-              { icon: User, label: 'Profile', path: '/profile/my-profile' },
-              { icon: Settings, label: 'Settings', path: '/settings' },
-              { icon: HelpCircle, label: 'Help', path: '/help' },
+              { icon: User, label: "Profile", path: "/profile/my-profile" },
+              { icon: Settings, label: "Settings", path: "/settings" },
+              { icon: HelpCircle, label: "Help", path: "/help" },
             ],
           },
         ]
       : [
-          // Non-authenticated User Items
           {
-            title: 'Account',
+            title: "Account",
             items: [
-              { icon: User, label: 'Login', path: '/login' },
-              { icon: FileText, label: 'CV Maker', path: '/cv-maker' },
-              { icon: HelpCircle, label: 'Help', path: '/help' },
+              { icon: User, label: "Login", path: "/login" },
+              { icon: FileText, label: "CV Maker", path: "/cv-maker" },
+              { icon: HelpCircle, label: "Help", path: "/help" },
             ],
           },
         ]),
   ];
 
-  // Handle resize to detect desktop view
   useEffect(() => {
     const handleResize = () => {
-      setIsDesktopView(window.innerWidth >= 768); // Tailwind 'md' breakpoint
+      setIsDesktopView(window.innerWidth >= 768);
     };
-
-    // Set initial value
     handleResize();
-
-    // Listen for window resize events
     window.addEventListener("resize", handleResize);
-
-    // Clean up the event listener on unmount
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
 
-  // Calculate the height of the menu content to apply the clip-path for mobile
   useEffect(() => {
     if (isOpen && !isDesktopView && menuContentRef.current) {
       const contentHeight = menuContentRef.current.offsetHeight;
-      const menuElement = document.getElementById('menu');
+      const menuElement = document.getElementById("menu");
       if (menuElement) {
         menuElement.style.clipPath = `polygon(0 0, 100% 0, 100% ${contentHeight}px, ${contentHeight * 0.707}px ${contentHeight}px, 0 ${contentHeight}px)`;
       }
@@ -207,51 +419,103 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
   }, [isOpen, isDesktopView]);
 
   return (
-    <div className="relative z-50">
-      {/* Hamburger Icon for Mobile */}
+    <div style={{ position: "relative", zIndex: 50 }}>
       {!isDesktopView && (
         <button
-          className="hamburger flex flex-col justify-between w-6 h-6 cursor-pointer relative z-50"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            width: "24px",
+            height: "24px",
+            cursor: "pointer",
+            position: "relative",
+            zIndex: 50,
+            background: "none",
+            border: "none",
+          }}
           onClick={toggleMenu}
           aria-label="Menu"
         >
-          <span className="block h-1 w-full bg-white"></span>
-          <span className="block h-1 w-full bg-white"></span>
-          <span className="block h-1 w-full bg-white"></span>
+          <span style={{ display: "block", height: "2px", width: "100%", background: "#FFFFFF" }}></span>
+          <span style={{ display: "block", height: "2px", width: "100%", background: "#FFFFFF" }}></span>
+          <span style={{ display: "block", height: "2px", width: "100%", background: "#FFFFFF" }}></span>
         </button>
       )}
 
-      {/* Desktop Navigation */}
       {isDesktopView && <DesktopNav onLogout={onLogout} />}
 
-      {/* Mobile Slide-out Menu */}
       {!isDesktopView && (
         <div
           id="menu"
-          className={`fixed top-0 right-0 w-1/2 h-full bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-50 ${
-            isOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
           style={{
-            clipPath: isOpen ? 'polygon(0 0, 100% 0, 100% 0, 0 0)' : undefined, // Reset clipPath when closed
+            position: "fixed",
+            top: 0,
+            right: 0,
+            width: "50%",
+            height: "100%",
+            background: "#FFFFFF",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            transform: isOpen ? "translateX(0)" : "translateX(100%)",
+            transition: "transform 0.3s ease-in-out",
+            zIndex: 50,
           }}
         >
-          {/* Menu Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-semibold text-gray-800">Menu</h2>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "24px",
+              borderBottom: "1px solid #E5E7EB",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "20px",
+                fontWeight: 600,
+                color: "#1F2937",
+              }}
+            >
+              Menu
+            </h2>
             <button
               onClick={toggleMenu}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              style={{
+                padding: "8px",
+                borderRadius: "50%",
+                transition: "background 0.2s ease",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
               aria-label="Close menu"
             >
-              <X className="h-6 w-6 text-gray-600" />
+              <X style={{ width: "24px", height: "24px", color: "#4B5563" }} />
             </button>
           </div>
 
-          {/* Menu Content */}
-          <div ref={menuContentRef} className="overflow-y-auto h-[calc(100%-82px)] pb-safe">
+          <div
+            ref={menuContentRef}
+            style={{
+              overflowY: "auto",
+              height: "calc(100% - 82px)",
+              paddingBottom: "16px",
+            }}
+          >
             {menuItems.map((section, idx) => (
-              <div key={idx} className="py-6">
-                <h3 className="px-6 text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              <div key={idx} style={{ padding: "24px 0" }}>
+                <h3
+                  style={{
+                    padding: "0 24px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#6B7280",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "12px",
+                  }}
+                >
                   {section.title}
                 </h3>
                 {section.items.map((item, index) => (
@@ -261,27 +525,54 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
                       navigate(item.path);
                       toggleMenu();
                     }}
-                    className="w-full px-6 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors text-gray-700 hover:text-gray-900"
+                    style={{
+                      width: "100%",
+                      padding: "12px 24px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      transition: "background 0.2s ease",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "#374151",
+                    }}
                   >
-                    <item.icon className="h-5 w-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <item.icon style={{ width: "20px", height: "20px" }} />
+                    <span style={{ fontWeight: 500 }}>{item.label}</span>
                   </button>
                 ))}
               </div>
             ))}
 
-            {/* Logout Button */}
             {isAuthenticated && (
-              <div className="p-6 border-t">
+              <div
+                style={{
+                  padding: "24px",
+                  borderTop: "1px solid #E5E7EB",
+                }}
+              >
                 <button
                   onClick={() => {
                     onLogout();
                     toggleMenu();
                   }}
-                  className="w-full px-4 py-3 flex items-center space-x-3 text-red-600 hover:bg-red-50 transition-colors rounded-lg"
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    color: "#DC2626",
+                    transition: "background 0.2s ease",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: "8px",
+                  }}
                 >
-                  <LogOut className="h-5 w-5" />
-                  <span className="font-medium">Logout</span>
+                  <LogOut style={{ width: "20px", height: "20px" }} />
+                  <span style={{ fontWeight: 500 }}>Logout</span>
                 </button>
               </div>
             )}
@@ -289,11 +580,19 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
         </div>
       )}
 
-      {/* Blurred Backdrop for Mobile */}
       {isOpen && !isDesktopView && (
         <div
           onClick={toggleMenu}
-          className="fixed top-0 left-0 w-full h-full bg-black/30 backdrop-blur-sm z-40"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(0, 0, 0, 0.3)",
+            backdropFilter: "blur(4px)",
+            zIndex: 40,
+          }}
         />
       )}
     </div>

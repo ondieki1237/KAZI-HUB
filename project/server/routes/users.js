@@ -3,29 +3,66 @@ import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: 'uploads/avatars/',
+// Create uploads directories if they don't exist
+const uploadsDir = 'uploads';
+const avatarsDir = path.join(uploadsDir, 'avatars');
+const documentsDir = path.join(uploadsDir, 'documents');
+
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+
+if (!fs.existsSync(documentsDir)) {
+  fs.mkdirSync(documentsDir, { recursive: true });
+}
+
+// Configure multer for avatar uploads
+const avatarStorage = multer.diskStorage({
+  destination: avatarsDir,
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
   }
 });
 
-const upload = multer({ 
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+// Configure multer for document uploads
+const documentStorage = multer.diskStorage({
+  destination: documentsDir,
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
 
+// Define allowed file types
+const allowedFileTypes = /jpeg|jpg|png|pdf|doc|docx/;
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit for avatars
+  fileFilter: (req, file, cb) => {
+    const mimetype = allowedFileTypes.test(file.mimetype);
+    const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
     if (mimetype && extname) {
       return cb(null, true);
     }
-    cb(new Error('Only .png, .jpg and .jpeg format allowed!'));
+    cb(new Error('Only .png, .jpg, .jpeg, .pdf, .doc, and .docx formats are allowed!'));
+  }
+});
+
+const documentUpload = multer({
+  storage: documentStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for documents
+  fileFilter: (req, file, cb) => {
+    const mimetype = allowedFileTypes.test(file.mimetype);
+    const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only .png, .jpg, .jpeg, .pdf, .doc, and .docx formats are allowed!'));
   }
 });
 
@@ -46,7 +83,7 @@ router.get('/:id', async (req, res) => {
 router.get('/my-profile', verifyToken, async (req, res) => {
   try {
     console.log('Fetching profile with user ID:', req.user.id);
-    
+
     const user = await User.findById(req.user.id)
       .select('-password')
       .lean();
@@ -56,32 +93,9 @@ router.get('/my-profile', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Log the found user (without sensitive data)
-    const userToLog = { ...user };
-    delete userToLog.password;
-    console.log('Found user:', userToLog);
-
     res.json(user);
   } catch (error) {
     console.error('Error in /my-profile:', error);
-    res.status(500).json({ message: 'Error fetching profile' });
-  }
-});
-
-// Get user profile
-router.get('/profile', verifyToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id)
-      .select('-password')
-      .lean();
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json(user);
-  } catch (error) {
-    console.error('Error fetching profile:', error);
     res.status(500).json({ message: 'Error fetching profile' });
   }
 });
@@ -90,14 +104,12 @@ router.get('/profile', verifyToken, async (req, res) => {
 router.patch('/profile', verifyToken, async (req, res) => {
   try {
     const { name, phone, location, bio, skills } = req.body;
-    
-    // Find user and update
+
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update only allowed fields
     if (name) user.name = name;
     if (phone) user.phone = phone;
     if (location) user.location = location;
@@ -106,7 +118,6 @@ router.patch('/profile', verifyToken, async (req, res) => {
 
     await user.save();
 
-    // Return updated user without password
     const updatedUser = await User.findById(req.user.id)
       .select('-password')
       .lean();
@@ -119,7 +130,7 @@ router.patch('/profile', verifyToken, async (req, res) => {
 });
 
 // Upload avatar
-router.post('/profile/avatar', verifyToken, upload.single('avatar'), async (req, res) => {
+router.post('/profile/avatar', verifyToken, avatarUpload.single('avatar'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -130,7 +141,6 @@ router.post('/profile/avatar', verifyToken, upload.single('avatar'), async (req,
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update avatar URL
     user.avatar = `/uploads/avatars/${req.file.filename}`;
     await user.save();
 
@@ -156,26 +166,45 @@ router.get('/:userId/documents', verifyToken, async (req, res) => {
 });
 
 // Upload document
-router.post('/:userId/documents', verifyToken, upload.single('document'), async (req, res) => {
+router.post('/:userId/documents', verifyToken, documentUpload.single('document'), async (req, res) => {
+  console.log("Upload document request received:", {
+    userId: req.params.userId,
+    file: req.file,
+    body: req.body
+  });
+
   try {
     const user = await User.findById(req.params.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
 
-    // In a real app, you would upload the file to a storage service
-    // and get back a URL. For now, we'll just store the document metadata
+    const documentUrl = `/uploads/documents/${req.file.filename}`;
+
     user.documents.push({
-      type: req.body.type,
-      url: 'placeholder-url', // Replace with actual upload URL
+      type: req.body.type || 'document',
+      url: documentUrl,
       name: req.file.originalname,
       uploadedAt: new Date()
     });
 
     await user.save();
+    console.log("Document uploaded successfully:", {
+      userId: user._id,
+      documentUrl,
+      documentName: req.file.originalname
+    });
+
     res.status(201).json(user.documents[user.documents.length - 1]);
   } catch (error) {
-    res.status(500).json({ message: 'Error uploading document' });
+    console.error('Error uploading document:', error);
+    res.status(500).json({
+      message: 'Error uploading document',
+      error: error.message
+    });
   }
 });
 
