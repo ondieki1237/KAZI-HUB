@@ -281,53 +281,6 @@ const DesktopNav: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               </div>
             ))}
           </div>
-
-          {/* Right Side Actions */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "16px",
-            }}
-          >
-            <button
-              onClick={() => navigate("/login")}
-              onMouseEnter={() => setHoveredSignIn(true)}
-              onMouseLeave={() => setHoveredSignIn(false)}
-              style={{
-                color: hoveredSignIn ? "#E0F2F1" : "#FFFFFF",
-                fontSize: "14px",
-                fontWeight: 500,
-                fontFamily: "'Euclid Circular A', 'Inter', 'Helvetica Neue', Arial, sans-serif",
-                transition: "color 0.2s ease",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Sign In
-            </button>
-
-            <button
-              onClick={() => navigate("/signup")}
-              onMouseEnter={() => setHoveredTryFree(true)}
-              onMouseLeave={() => setHoveredTryFree(false)}
-              style={{
-                background: hoveredTryFree ? "#4DB6AC" : "#26A69A",
-                color: "#FFFFFF",
-                fontSize: "14px",
-                fontWeight: 600,
-                fontFamily: "'Euclid Circular A', 'Inter', 'Helvetica Neue', Arial, sans-serif",
-                padding: "8px 16px",
-                borderRadius: "4px",
-                transition: "background 0.2s ease",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Try Free
-            </button>
-          </div>
         </div>
       </nav>
     </>

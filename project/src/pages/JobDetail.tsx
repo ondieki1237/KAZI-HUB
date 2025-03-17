@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   useParams,
   useNavigate,
@@ -51,68 +51,74 @@ const JobDetail: React.FC = () => {
   const [userCVs, setUserCVs] = useState<Document[]>([]);
   const [loadingCVs, setLoadingCVs] = useState(true);
 
+  // Memoize fetchJobDetails to prevent unnecessary re-renders
+  const fetchJobDetails = useCallback(async () => {
+    if (!jobId || !authUser) {
+      setLoading(false);
+      setError('Please log in to view job details');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Fetching job details for ID:', jobId, 'UserID:', authUser?._id);
+      
+      const response = await jobs.getById(jobId);
+      if (!response || !response._id) {
+        throw new Error('Invalid job data received');
+      }
+      
+      setJob(response);
+      const userApplication = response.applications?.find(
+        (app: { workerId: string }) => app.workerId === authUser._id
+      );
+      setHasApplied(!!userApplication);
+    } catch (error: any) {
+      console.error('Error fetching job details:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to load job details';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [jobId, authUser]);
+
+  // Memoize fetchUserCVs
+  const fetchUserCVs = useCallback(async () => {
+    if (!authUser) return;
+    
+    try {
+      setLoadingCVs(true);
+      const response = await profiles.getUserDocuments(authUser._id);
+      setUserCVs(response.filter(doc => doc.type === 'cv'));
+    } catch (error) {
+      console.error('Error fetching CVs:', error);
+      toast.error('Failed to load CVs');
+    } finally {
+      setLoadingCVs(false);
+    }
+  }, [authUser]);
+
+  // Debug logging
   useEffect(() => {
     console.log('Current auth state:', {
       isLoggedIn: !!authUser,
-      user: authUser,
+      userId: authUser?._id,
       token: localStorage.getItem('token')
     });
   }, [authUser]);
 
+  // Fetch job details
   useEffect(() => {
-    const fetchJobDetails = async () => {
-      try {
-        if (!jobId || !authUser) {
-          console.warn('Job ID or user not available yet.');
-          return;
-        }
-        setLoading(true);
-        setError(null);
-        if (!jobId) {
-          throw new Error('Invalid job ID');
-        }
-        console.log('Fetching job details for ID:', jobId, 'UserID:', authUser?._id); // Debug log
-        const response = await jobs.getById(jobId);
-        if (!response || !response._id) {
-          throw new Error('Invalid job data received');
-        }
-        setJob(response);
-        
-        // Check if user has already applied
-        const userApplication = response.applications?.find(
-          (app: { workerId: string }) => app.workerId === authUser._id
-        );
-        setHasApplied(!!userApplication);
-      } catch (error: any) {
-        console.error('Error fetching job details:', error);
-        const errorMessage =
-          error.response?.data?.message || error.message || 'Failed to load job details';
-        setError(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (authUser) {
-      fetchJobDetails();
-    }
-  }, [jobId, authUser]);
+    fetchJobDetails();
+  }, [fetchJobDetails]);
 
+  // Fetch user CVs
   useEffect(() => {
-    const fetchUserCVs = async () => {
-      if (!authUser) return;
-      try {
-        setLoadingCVs(true);
-        const response = await profiles.getUserDocuments(authUser._id);
-        setUserCVs(response.filter(doc => doc.type === 'cv'));
-      } catch (error) {
-        console.error('Error fetching CVs:', error);
-      } finally {
-        setLoadingCVs(false);
-      }
-    };
     fetchUserCVs();
-  }, [authUser]);
+  }, [fetchUserCVs]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -144,7 +150,6 @@ const JobDetail: React.FC = () => {
     }
     try {
       setApplying(true);
-      // Upload new documents if any
       const uploadedDocs = [];
       for (const file of documents) {
         const formData = new FormData();
@@ -153,9 +158,8 @@ const JobDetail: React.FC = () => {
         const uploadedDoc = await profiles.uploadDocument(authUser._id, file, 'cv');
         uploadedDocs.push(uploadedDoc._id);
       }
-      // Submit application with userId included
       await jobs.apply(jobId!, {
-        userId: authUser._id,  // Include user ID in the request
+        userId: authUser._id,
         message: applicationMessage,
         documents: [...uploadedDocs, ...userCVs.map(cv => cv._id)]
       });
@@ -171,6 +175,114 @@ const JobDetail: React.FC = () => {
       setApplying(false);
     }
   };
+
+  const renderApplicationForm = () => (
+    <form onSubmit={handleApply} className="space-y-6 md:border md:p-6 md:rounded-lg md:bg-gray-50">
+      <textarea
+        value={applicationMessage}
+        onChange={(e) => setApplicationMessage(e.target.value)}
+        placeholder="Write a message to the employer..."
+        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
+        rows={4}
+        required
+      />
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-medium text-gray-900">CV Documents</h3>
+          {userCVs.length === 0 && (
+            <Link
+              to="/cv-maker"
+              className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+            >
+              Create New CV
+            </Link>
+          )}
+        </div>
+        {loadingCVs ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+          </div>
+        ) : userCVs.length > 0 ? (
+          <div className="space-y-2">
+            {userCVs.map(cv => (
+              <div key={cv._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-teal-600 mr-2" />
+                  <span className="text-sm text-gray-600">{cv.name}</span>
+                </div>
+                <a
+                  href={cv.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-600 hover:text-teal-700 text-sm"
+                >
+                  View
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-4 space-y-3">
+            <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto" />
+            <p className="text-gray-600">No CV found in your profile</p>
+          </div>
+        )}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Upload Additional Documents
+          </label>
+          <div className="flex items-center justify-center w-full">
+            <label className="w-full flex flex-col items-center px-4 py-6 bg-white text-gray-500 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-50">
+              <Upload className="h-8 w-8 text-teal-600" />
+              <span className="mt-2 text-sm">Click to upload documents</span>
+              <input
+                type="file"
+                className="hidden"
+                multiple
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
+        </div>
+        {documents.length > 0 && (
+          <div className="space-y-2">
+            {documents.map((file, index) => (
+              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-teal-600 mr-2" />
+                  <span className="text-sm text-gray-600">{file.name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeDocument(index)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex space-x-3">
+        <button
+          type="submit"
+          disabled={applying}
+          className="flex-1 py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors disabled:opacity-50"
+        >
+          {applying ? 'Submitting...' : 'Submit Application'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowApplicationForm(false)}
+          className="py-3 px-6 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
 
   if (loading) {
     return (
@@ -221,123 +333,10 @@ const JobDetail: React.FC = () => {
     );
   }
 
-  const renderApplicationForm = () => (
-    <form onSubmit={handleApply} className="space-y-6">
-      <textarea
-        value={applicationMessage}
-        onChange={(e) => setApplicationMessage(e.target.value)}
-        placeholder="Write a message to the employer..."
-        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-        rows={4}
-        required
-      />
-      {/* CV Section */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-medium text-gray-900">CV Documents</h3>
-          {userCVs.length === 0 && (
-            <Link
-              to="/cv-maker"
-              className="text-teal-600 hover:text-teal-700 text-sm font-medium"
-            >
-              Create New CV
-            </Link>
-          )}
-        </div>
-        {/* Existing CVs */}
-        {loadingCVs ? (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
-          </div>
-        ) : userCVs.length > 0 ? (
-          <div className="space-y-2">
-            {userCVs.map(cv => (
-              <div key={cv._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 text-teal-600 mr-2" />
-                  <span className="text-sm text-gray-600">{cv.name}</span>
-                </div>
-                <a
-                  href={cv.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-teal-600 hover:text-teal-700 text-sm"
-                >
-                  View
-                </a>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-4 space-y-3">
-            <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto" />
-            <p className="text-gray-600">No CV found in your profile</p>
-          </div>
-        )}
-        {/* Upload New Documents */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Upload Additional Documents
-          </label>
-          <div className="flex items-center justify-center w-full">
-            <label className="w-full flex flex-col items-center px-4 py-6 bg-white text-gray-500 rounded-lg border-2 border-dashed cursor-pointer hover:bg-gray-50">
-              <Upload className="h-8 w-8 text-teal-600" />
-              <span className="mt-2 text-sm">Click to upload documents</span>
-              <input
-                type="file"
-                className="hidden"
-                multiple
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileChange}
-              />
-            </label>
-          </div>
-        </div>
-        {/* Selected Files List */}
-        {documents.length > 0 && (
-          <div className="space-y-2">
-            {documents.map((file, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 text-teal-600 mr-2" />
-                  <span className="text-sm text-gray-600">{file.name}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeDocument(index)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="flex space-x-3">
-        <button
-          type="submit"
-          disabled={applying}
-          className="flex-1 py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors disabled:opacity-50"
-        >
-          {applying ? 'Submitting...' : 'Submit Application'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowApplicationForm(false)}
-          className="py-3 px-6 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader title="Job Details" />
       <main className="container mx-auto px-4 py-8">
-        {/* Back Button */}
         <div className="mb-6">
           <button
             onClick={() => navigate(-1)}
@@ -347,124 +346,122 @@ const JobDetail: React.FC = () => {
             Back to Jobs
           </button>
         </div>
-        {/* Job Header */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="bg-gradient-to-r from-teal-dark to-teal-medium text-white p-6">
-            <h1 className="text-3xl font-bold mb-4">{job.title}</h1>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="flex items-center">
-                <MapPin className="h-5 w-5 mr-2" />
-                <span>{`${job.locationArea}, ${job.locationCity}`}</span>
+        <div className="md:grid md:grid-cols-3 md:gap-6">
+          <div className="md:col-span-2">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6 md:mb-0">
+              <div className="bg-gradient-to-r from-teal-dark to-teal-medium text-white p-6">
+                <h1 className="text-3xl md:text-4xl font-bold mb-4">{job.title}</h1>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="flex items-center">
+                    <MapPin className="h-5 w-5 mr-2" />
+                    <span>{`${job.locationArea}, ${job.locationCity}`}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <DollarSign className="h-5 w-5 mr-2" />
+                    <span>KES {job.budget.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Clock className="h-5 w-5 mr-2" />
+                    <span>{job.duration}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    <span>{new Date(job.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center">
-                <DollarSign className="h-5 w-5 mr-2" />
-                <span>KES {job.budget.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center">
-                <Clock className="h-5 w-5 mr-2" />
-                <span>{job.duration}</span>
-              </div>
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 mr-2" />
-                <span>{new Date(job.createdAt).toLocaleDateString()}</span>
+              <div className="p-6">
+                <div className="mb-6">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      job.status === 'open'
+                        ? 'bg-green-100 text-green-700'
+                        : job.status === 'in-progress'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                  </span>
+                </div>
+                <div className="mb-8">
+                  <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-3">Description</h2>
+                  <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{job.description}</p>
+                </div>
+                <div className="mb-8">
+                  <h2 className="text-xl md:text-2xl font-semibold text-gray-800 mb-3">Required Skills</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {job.skillsRequired?.map((skill, index) => (
+                      <span
+                        key={index}
+                        className="bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-sm font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          {/* Job Content */}
-          <div className="p-6">
-            {/* Status Badge */}
-            <div className="mb-6">
-              <span
-                className={`px-3 py-1 rounded-full text-sm ${
-                  job.status === 'open'
-                    ? 'bg-green-100 text-green-700'
-                    : job.status === 'in-progress'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
-              </span>
-            </div>
-            {/* Description */}
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3">Description</h2>
-              <p className="text-gray-600 whitespace-pre-wrap">{job.description}</p>
-            </div>
-            {/* Required Skills */}
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3">Required Skills</h2>
-              <div className="flex flex-wrap gap-2">
-                {job.skillsRequired?.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-            {/* Employer Info */}
+          <div className="md:col-span-1 space-y-6">
             {job.employerId && (
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-3">Posted by</h2>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Posted by</h2>
                 <div className="flex items-center space-x-4">
                   <div className="bg-teal-50 rounded-full p-3">
                     <User className="h-6 w-6 text-teal-dark" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-800">{job.employerId.name}</h3>
+                    <h3 className="font-medium text-gray-800 text-lg">{job.employerId.name}</h3>
                     <p className="text-gray-500 text-sm">{job.employerId.location}</p>
                   </div>
                 </div>
               </div>
             )}
-            {/* Application Section */}
-            <div className="mt-6 space-y-4">
-              {hasApplied ? (
-                // Show applied message if user has already applied
-                <div className="p-4 bg-green-50 text-green-700 rounded-lg">
-                  You have already applied for this job
-                </div>
-              ) : !authUser ? (
-                // Show login button if user is not authenticated
-                <button
-                  onClick={() => navigate('/login')}
-                  className="w-full py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors"
-                >
-                  Login to Apply
-                </button>
-              ) : authUser.id === job.employerId._id ? (
-                // Show message for job poster
-                <div className="p-4 bg-blue-50 text-blue-700 rounded-lg">
-                  This is your posted job
-                </div>
-              ) : (
-                // Show apply button/form for everyone except job poster and those who already applied
-                <>
-                  {!showApplicationForm ? (
-                    <button
-                      onClick={() => setShowApplicationForm(true)}
-                      className="w-full py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors"
-                    >
-                      Apply for this Job
-                    </button>
-                  ) : (
-                    renderApplicationForm()
-                  )}
-                </>
-              )}
-              {/* Contact Employer Button - always show if user is logged in and not the job poster */}
-              {authUser && authUser.id !== job.employerId._id && (
-                <button
-                  onClick={() => navigate(`/chat/${job._id}/${job.employerId._id}`)}
-                  className="w-full flex items-center justify-center py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  <MessageSquare className="h-5 w-5 mr-2" />
-                  Contact Employer
-                </button>
-              )}
+            <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
+              <div className="space-y-4">
+                {hasApplied ? (
+                  <div className="p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2" />
+                    You have already applied for this job
+                  </div>
+                ) : !authUser ? (
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="w-full py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors font-medium"
+                  >
+                    Login to Apply
+                  </button>
+                ) : authUser.id === job.employerId._id ? (
+                  <div className="p-4 bg-blue-50 text-blue-700 rounded-lg flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2" />
+                    This is your posted job
+                  </div>
+                ) : (
+                  <>
+                    {!showApplicationForm ? (
+                      <button
+                        onClick={() => setShowApplicationForm(true)}
+                        className="w-full py-3 bg-teal-dark text-white rounded-lg hover:bg-teal-medium transition-colors font-medium"
+                      >
+                        Apply for this Job
+                      </button>
+                    ) : (
+                      renderApplicationForm()
+                    )}
+                  </>
+                )}
+                {authUser && authUser.id !== job.employerId._id && (
+                  <button
+                    onClick={() => navigate(`/chat/${job._id}/${job.employerId._id}`)}
+                    className="w-full flex items-center justify-center py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    <MessageSquare className="h-5 w-5 mr-2" />
+                    Contact Employer
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
