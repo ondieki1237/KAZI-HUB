@@ -40,7 +40,21 @@ function Home() {
 
   useEffect(() => {
     if (user) {
-      const newSocket = io('http://localhost:5000');
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = storedUser._id || user._id;
+      
+      if (!userId) {
+        console.error('No valid user ID found');
+        return;
+      }
+
+      // Validate MongoDB ObjectId format
+      if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+        console.error('Invalid user ID format:', userId);
+        return;
+      }
+
+      const newSocket = io('http://192.168.1.157:5000');
       setSocket(newSocket);
       fetchUnreadMessages();
       return () => {
@@ -51,8 +65,22 @@ function Home() {
 
   useEffect(() => {
     if (socket && user) {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = storedUser._id || user._id;
+      
+      if (!userId) {
+        console.error('No valid user ID found');
+        return;
+      }
+
+      // Validate MongoDB ObjectId format
+      if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+        console.error('Invalid user ID format:', userId);
+        return;
+      }
+
       socket.on('new_message', (message: Message) => {
-        if (message.recipientId._id === user.id && !message.read) {
+        if (message.recipientId._id === userId && !message.read) {
           setNotifications(prev => [...prev, {
             type: 'message',
             _id: message._id,
@@ -64,8 +92,8 @@ function Home() {
         }
       });
 
-      socket.on('application_status_updated', (data: { jobId: string; jobTitle: string; workerId: string; status: 'accepted' | 'rejected' }) => {
-        if (data.workerId === user.id && data.status === 'accepted') {
+      socket.on('application_status_updated', (data: { jobId: string; workerId: string; status: 'accepted' | 'rejected' }) => {
+        if (data.workerId === userId && data.status === 'accepted') {
           setNotifications(prev => [...prev, {
             type: 'jobAccepted',
             _id: data.jobId,
@@ -87,6 +115,20 @@ function Home() {
 
   const fetchUnreadMessages = async () => {
     try {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = storedUser._id || user?._id;
+      
+      if (!userId) {
+        console.error('No valid user ID found');
+        return;
+      }
+
+      // Validate MongoDB ObjectId format
+      if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+        console.error('Invalid user ID format:', userId);
+        return;
+      }
+
       const conversations = await chat.getConversations();
       const unread = conversations.reduce((acc: Notification[], conv: any) => {
         if (conv.unreadCount > 0) {

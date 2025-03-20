@@ -7,7 +7,6 @@ import {
 import {
   Briefcase,
   MapPin,
-  DollarSign,
   Clock,
   User,
   Mail,
@@ -51,7 +50,6 @@ const JobDetail: React.FC = () => {
   const [userCVs, setUserCVs] = useState<Document[]>([]);
   const [loadingCVs, setLoadingCVs] = useState(true);
 
-  // Memoize fetchJobDetails to prevent unnecessary re-renders
   const fetchJobDetails = useCallback(async () => {
     if (!jobId || !authUser) {
       setLoading(false);
@@ -85,7 +83,6 @@ const JobDetail: React.FC = () => {
     }
   }, [jobId, authUser]);
 
-  // Memoize fetchUserCVs
   const fetchUserCVs = useCallback(async () => {
     if (!authUser) return;
     
@@ -101,7 +98,6 @@ const JobDetail: React.FC = () => {
     }
   }, [authUser]);
 
-  // Debug logging
   useEffect(() => {
     console.log('Current auth state:', {
       isLoggedIn: !!authUser,
@@ -110,12 +106,10 @@ const JobDetail: React.FC = () => {
     });
   }, [authUser]);
 
-  // Fetch job details
   useEffect(() => {
     fetchJobDetails();
   }, [fetchJobDetails]);
 
-  // Fetch user CVs
   useEffect(() => {
     fetchUserCVs();
   }, [fetchUserCVs]);
@@ -357,7 +351,6 @@ const JobDetail: React.FC = () => {
                     <span>{`${job.locationArea}, ${job.locationCity}`}</span>
                   </div>
                   <div className="flex items-center">
-                    <DollarSign className="h-5 w-5 mr-2" />
                     <span>KES {job.budget.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center">

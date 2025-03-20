@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, MapPin, DollarSign, Clock } from 'lucide-react';
+import { Briefcase, MapPin, Banknote, Clock } from 'lucide-react'; // Changed DollarSign to Banknote
 import toast from 'react-hot-toast';
 import { jobs } from '../services/api';
 import { Job } from '../types';
@@ -91,7 +91,18 @@ const CreateJob: React.FC = () => {
       const response = await jobs.create(newJob);
       
       if (response._id) {
-        toast.success('Job posted successfully!');
+        // Show custom toast with message and emoji
+        toast.success(
+          'Thank you for trusting us to run your errands! 😊',
+          {
+            duration: 2000, // Display for 2 seconds
+            style: {
+              background: '#fff',
+              color: '#333',
+              border: '1px solid #10b981', // Teal-like border to match success theme
+            },
+          }
+        );
         // Wait for the toast to show before navigating
         setTimeout(() => {
           navigate('/jobs/my-posted');
@@ -200,8 +211,8 @@ const CreateJob: React.FC = () => {
           {/* Budget */}
           <div>
             <label htmlFor="budget" className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-              <DollarSign className="h-5 w-5 text-teal-dark" />
-              <span>Budget</span>
+              <Banknote className="h-5 w-5 text-teal-dark" /> {/* Replaced DollarSign with Banknote */}
+              <span>Budget (Ksh)</span> {/* Updated label to Budget (Ksh) */}
             </label>
             <input
               type="number"

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, MapPin, DollarSign, Clock, User, MessageSquare } from 'lucide-react';
+import { Briefcase, MapPin, Banknote, Clock, User, MessageSquare } from 'lucide-react'; // No Home icon needed
 import toast from 'react-hot-toast';
 import { jobs } from '../services/api';
 import type { Job } from '../types';
@@ -39,12 +39,24 @@ const SeeMyPostedJobs: React.FC = () => {
     navigate(`/chat/${jobId}/${workerId}`);
   };
 
+  const handleHomeClick = () => {
+    navigate('/'); // Redirects to homepage
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-gradient-to-r from-teal-dark to-teal-medium text-white py-4">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">My Posted Jobs</h1>
+          <div className="flex justify-end">
+            <button
+              onClick={handleHomeClick}
+              className="bg-teal-dark text-white py-2 px-4 rounded-md hover:bg-teal-medium"
+            >
+              Home
+            </button>
+          </div>
         </div>
       </header>
 
@@ -97,8 +109,8 @@ const SeeMyPostedJobs: React.FC = () => {
 
                     {/* Budget */}
                     <div className="flex items-center text-gray-600 mb-2">
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      <span>KES {job.budget.toLocaleString()}</span>
+                      <Banknote className="h-4 w-4 mr-2" />
+                      <span>Budget (Ksh) {job.budget.toLocaleString()}</span>
                     </div>
 
                     {/* Duration */}
