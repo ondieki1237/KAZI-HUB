@@ -90,7 +90,7 @@ const JobDetail: React.FC = () => {
     try {
       setLoadingCVs(true);
       const response = await profiles.getUserDocuments(authUser._id);
-      setUserCVs(response.filter(doc => doc.type === 'cv'));
+      setUserCVs(response.filter((doc: Document) => doc.type === 'cv'));
     } catch (error) {
       console.error('Error fetching CVs:', error);
       toast.error('Failed to load CVs');
@@ -154,8 +154,8 @@ const JobDetail: React.FC = () => {
         uploadedDocs.push(uploadedDoc._id);
       }
       await jobs.apply(jobId!, {
-        userId: authUser._id,
         message: applicationMessage,
+        coverLetter: applicationMessage,
         documents: [...uploadedDocs, ...userCVs.map(cv => cv._id)]
       });
       setHasApplied(true);
@@ -391,7 +391,11 @@ const JobDetail: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div className="flex items-center">
                     <MapPin className="h-5 w-5 mr-2" />
-                    <span>{`${job.locationArea}, ${job.locationCity}`}</span>
+                    <span>
+                      {job.employerId.location && typeof job.employerId.location === 'object'
+                        ? `${job.locationArea}, ${job.locationCity}`
+                        : job.employerId.location || `${job.locationArea}, ${job.locationCity}`}
+                    </span>
                   </div>
                   <div className="flex items-center">
                     <span>KES {job.budget.toLocaleString()}</span>
@@ -402,7 +406,13 @@ const JobDetail: React.FC = () => {
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-5 w-5 mr-2" />
-                    <span>{new Date(job.createdAt).toLocaleDateString()}</span>
+                    <span>Posted: {new Date(job.createdAt).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}</span>
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-5 w-5 mr-2" />
@@ -460,7 +470,11 @@ const JobDetail: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-800 text-lg">{job.employerId.name}</h3>
-                    <p className="text-gray-500 text-sm">{job.employerId.location}</p>
+                    <p className="text-gray-500 text-sm">
+                      {job.employerId.location && typeof job.employerId.location === 'object'
+                        ? `${job.locationArea}, ${job.locationCity}`
+                        : job.employerId.location || `${job.locationArea}, ${job.locationCity}`}
+                    </p>
                   </div>
                 </div>
               </div>
