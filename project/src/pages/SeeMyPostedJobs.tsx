@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, MapPin, Banknote, Clock, User, MessageSquare } from 'lucide-react'; // No Home icon needed
+import { Briefcase, MapPin, Banknote, Clock, User, MessageSquare, Trash2, Calendar } from 'lucide-react'; // No Home icon needed
 import toast from 'react-hot-toast';
 import { jobs } from '../services/api';
 import type { Job } from '../types';
@@ -43,6 +43,39 @@ const SeeMyPostedJobs: React.FC = () => {
     navigate('/'); // Redirects to homepage
   };
 
+  const handleDeleteJob = async (jobId: string) => {
+    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await jobs.deleteJob(jobId);
+      setPostedJobs(prev => prev.filter(job => job._id !== jobId));
+      toast.success('Job deleted successfully');
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      toast.error('Failed to delete job');
+    }
+  };
+
+  const handleExtendExpiration = async (jobId: string) => {
+    const newDate = prompt('Enter new expiration date (YYYY-MM-DD HH:mm):');
+    if (!newDate) return;
+
+    try {
+      await jobs.updateExpirationDate(jobId, newDate);
+      setPostedJobs(prev => prev.map(job => 
+        job._id === jobId 
+          ? { ...job, expirationDate: newDate }
+          : job
+      ));
+      toast.success('Job expiration date updated successfully');
+    } catch (error) {
+      console.error('Error updating expiration date:', error);
+      toast.error('Failed to update expiration date');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -77,21 +110,36 @@ const SeeMyPostedJobs: React.FC = () => {
                 key={job._id}
                 className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
               >
-                {/* Job Title and Category */}
+                {/* Job Title and Actions */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-semibold text-gray-800 text-xl">{job.title}</h3>
-                    <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full mt-2 inline-block">
-                      {job.category}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-500">
-                      Applications: <span className="font-semibold">{job.applications?.length || 0}</span>
+                    <div className="flex items-center mt-2 space-x-2">
+                      <span className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full">
+                        {job.category}
+                      </span>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        new Date(job.expirationDate) > new Date()
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {new Date(job.expirationDate) > new Date()
+                          ? 'Active'
+                          : 'Expired'}
+                      </span>
                     </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleDeleteJob(job._id)}
+                      className="p-2 text-red-500 hover:text-red-700"
+                      title="Delete Job"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
                     <button
                       onClick={() => handleViewApplications(job._id)}
-                      className="mt-2 text-teal-dark hover:text-teal-medium text-sm font-medium"
+                      className="text-teal-dark hover:text-teal-medium text-sm font-medium"
                     >
                       View Applications
                     </button>
@@ -118,6 +166,28 @@ const SeeMyPostedJobs: React.FC = () => {
                       <Clock className="h-4 w-4 mr-2" />
                       <span>{job.duration}</span>
                     </div>
+
+                    {/* Expiration Date */}
+                    <div className="flex items-center text-gray-600 mb-2">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <span>Expires: {job.expirationDate ? new Date(job.expirationDate).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : 'Not set'}</span>
+                    </div>
+                    
+                    {/* Extend Expiration Button */}
+                    {job.expirationDate && new Date(job.expirationDate) <= new Date() && (
+                      <button
+                        onClick={() => handleExtendExpiration(job._id)}
+                        className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+                      >
+                        Extend Expiration
+                      </button>
+                    )}
                   </div>
 
                   <div>

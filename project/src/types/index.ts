@@ -30,9 +30,16 @@ export interface Job {
   locationArea: string;
   locationCity: string;
   budget: number;
-  status: 'open' | 'in-progress' | 'completed' | 'cancelled';
-  skillsRequired: string[];
   duration: string;
+  expirationDate: string;
+  requirements: {
+    isRemote: boolean;
+    numberOfOpenings: number;
+    isConfidential: boolean;
+  };
+  skillsRequired: string[];
+  status: 'open' | 'in_progress' | 'completed' | 'cancelled';
+  applications: any[];
   employerId: string;
   createdAt: string;
   interestedUsers?: {

@@ -1,24 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Camera, MapPin, Phone, Mail, Star, Briefcase, FileText, Share2, X, Plus } from 'lucide-react';
-import { profiles } from '../services/api';
+import { Camera, MapPin, Phone, Mail, Star, Briefcase, FileText, Share2, X, Plus, Home } from 'lucide-react';
+import { profiles, jobs } from '../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
   _id: string;
-  name: string;
+  username: string;
   email: string;
-  phone: string;
-  location: string;
-  bio: string;
-  avatar: string;
+  phoneNumber: string;
   role: 'worker' | 'employer';
-  skills: string[];
-  rating?: number;
-  completedJobs?: number;
   verified: boolean;
+  profile?: {
+    location?: string;
+    bio?: string;
+    avatar?: string;
+    skills?: string[];
+    rating?: number;
+    completedJobs?: number;
   yearsOfExperience?: number;
+    addressString?: string; // Add addressString to the interface
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 const MyProfile: React.FC = () => {
@@ -29,6 +34,8 @@ const MyProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [newSkill, setNewSkill] = useState('');
+  const [jobHistory, setJobHistory] = useState<any[]>([]);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,32 +45,34 @@ const MyProfile: React.FC = () => {
       return;
     }
     
-    fetchProfile();
-  }, [user, navigate]);
-
-  const fetchProfile = async () => {
+    const fetchData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching profile...');
-      const data = await profiles.getMyProfile();
-      console.log('Profile data:', data);
-      
-      if (!data) {
+        const [profileData, historyData] = await Promise.all([
+          profiles.getMyProfile(),
+          jobs.getMyJobHistory()
+        ]);
+
+        if (!profileData) {
         toast.error('Failed to load profile data');
         return;
       }
 
-      setProfile(data);
+        setProfile(profileData);
       setEditData({
-        name: data.name,
-        phone: data.phone,
-        location: data.location,
-        bio: data.bio,
-        skills: data.skills,
-      });
+          username: profileData.username,
+          phoneNumber: profileData.phoneNumber,
+          profile: {
+            location: profileData.profile?.location || '',
+            bio: profileData.profile?.bio || '',
+            skills: profileData.profile?.skills || [],
+            addressString: profileData.profile?.addressString || '', // Initialize addressString
+          }
+        });
+        setJobHistory(historyData.completed || []);
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
-      toast.error(error.response?.data?.message || 'Failed to load profile');
+        console.error('Error fetching data:', error);
+        toast.error(error.response?.data?.message || 'Failed to load data');
       if (error.response?.status === 401) {
         navigate('/login');
       }
@@ -71,6 +80,9 @@ const MyProfile: React.FC = () => {
       setLoading(false);
     }
   };
+
+    fetchData();
+  }, [user, navigate]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,12 +93,18 @@ const MyProfile: React.FC = () => {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const updatedProfile = await profiles.uploadAvatar(formData);
-      setProfile((prev) => (prev ? { ...prev, avatar: updatedProfile.avatar } : null));
+      const response = await profiles.uploadAvatar(formData);
+      setProfile((prev) => prev ? {
+        ...prev,
+        profile: {
+          ...prev.profile,
+          avatar: response.avatar
+        }
+      } : null);
       toast.success('Profile picture updated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading avatar:', error);
-      toast.error('Failed to upload profile picture');
+      toast.error(error.response?.data?.message || 'Failed to upload profile picture');
     } finally {
       setUploadingImage(false);
     }
@@ -94,8 +112,12 @@ const MyProfile: React.FC = () => {
 
   const handleUpdateProfile = async () => {
     try {
-      if (!editData.name?.trim()) {
-        toast.error('Name is required');
+      if (!editData.username?.trim()) {
+        toast.error('Username is required');
+        return;
+      }
+      if (!editData.profile?.addressString?.trim()) {
+        toast.error('Address is required');
         return;
       }
 
@@ -103,19 +125,22 @@ const MyProfile: React.FC = () => {
       setProfile(updatedProfile);
       setIsEditing(false);
       toast.success('Profile updated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast.error(error.response?.data?.message || 'Failed to update profile');
     }
   };
 
   const handleSkillAdd = () => {
     if (!newSkill.trim()) return;
 
-    if (!editData.skills?.includes(newSkill)) {
+    if (!editData.profile?.skills?.includes(newSkill)) {
       setEditData((prev) => ({
         ...prev,
-        skills: [...(prev.skills || []), newSkill.trim()],
+        profile: {
+          ...prev.profile,
+          skills: [...(prev.profile?.skills || []), newSkill.trim()],
+        },
       }));
       setNewSkill('');
     }
@@ -124,8 +149,41 @@ const MyProfile: React.FC = () => {
   const handleSkillRemove = (skillToRemove: string) => {
     setEditData((prev) => ({
       ...prev,
-      skills: prev.skills?.filter((skill) => skill !== skillToRemove),
+      profile: {
+        ...prev.profile,
+        skills: prev.profile?.skills?.filter((skill) => skill !== skillToRemove) || [],
+      },
     }));
+  };
+
+  const getCurrentLocation = () => {
+    setIsGettingLocation(true);
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      setIsGettingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { longitude, latitude } = position.coords;
+        const locationString = `${longitude}, ${latitude}`;
+        setEditData(prev => ({
+          ...prev,
+          profile: {
+            ...prev.profile,
+            location: locationString
+          }
+        }));
+        toast.success('Location updated successfully');
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        toast.error('Unable to get your location. Please enter it manually.');
+        setIsGettingLocation(false);
+      }
+    );
   };
 
   if (loading) {
@@ -145,39 +203,55 @@ const MyProfile: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container mx-auto px-4 max-w-5xl">
-        {/* Cover Image */}
-        <div className="relative h-56 bg-gradient-to-r from-teal-600 to-teal-400 rounded-t-xl">
-          <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-            <h2 className="text-white text-3xl md:text-4xl font-bold">My Profile</h2>
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation Bar */}
+      <nav className="bg-white shadow-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-teal-600 transition-colors"
+            >
+              <Home className="h-5 w-5" />
+              <span>Home</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-5xl mx-auto">
+          {/* Cover Image */}
+          <div className="relative h-48 md:h-56 bg-gradient-to-r from-teal-600 to-teal-400 rounded-t-xl">
+            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+              <h2 className="text-white text-2xl md:text-4xl font-bold">My Profile</h2>
           </div>
         </div>
 
-        <div className="bg-white rounded-b-xl shadow-lg -mt-10 p-8">
+          <div className="bg-white rounded-b-xl shadow-lg -mt-10 p-4 md:p-8">
           {/* Avatar Section */}
           <div className="flex justify-center">
             <div className="relative">
-              <div className="w-40 h-40 rounded-full border-4 border-white overflow-hidden bg-gray-100 relative group">
-                {profile.avatar ? (
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white overflow-hidden bg-gray-100 relative group">
+                  {profile.profile?.avatar ? (
                   <img
-                    src={profile.avatar}
-                    alt={profile.name}
+                      src={profile.profile.avatar}
+                      alt={profile.username}
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-teal-600 text-white text-5xl font-bold">
-                    {profile.name.charAt(0).toUpperCase()}
+                    <div className="w-full h-full flex items-center justify-center bg-teal-600 text-white text-4xl md:text-5xl font-bold">
+                      {(profile.username || '').charAt(0).toUpperCase()}
                   </div>
                 )}
                 <label
                   htmlFor="avatar-upload"
                   className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 >
-                  <Camera className="h-12 w-12 text-white" />
+                    <Camera className="h-8 w-8 md:h-12 md:w-12 text-white" />
                   {uploadingImage && (
                     <div className="absolute bottom-2 w-full flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-teal-500 border-t-transparent"></div>
+                        <div className="animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-2 border-teal-500 border-t-transparent"></div>
                     </div>
                   )}
                 </label>
@@ -201,11 +275,14 @@ const MyProfile: React.FC = () => {
                   onClick={() => {
                     setIsEditing(false);
                     setEditData({
-                      name: profile.name,
-                      phone: profile.phone,
-                      location: profile.location,
-                      bio: profile.bio,
-                      skills: profile.skills,
+                        username: profile.username,
+                        phoneNumber: profile.phoneNumber,
+                        profile: {
+                          location: profile.profile?.location || '',
+                          bio: profile.profile?.bio || '',
+                          skills: profile.profile?.skills || [],
+                          addressString: profile.profile?.addressString || '', // Reset addressString
+                        }
                     });
                   }}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -222,7 +299,7 @@ const MyProfile: React.FC = () => {
             ) : (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-4 py-2 border border-teal-600 text-teal-600 rounded-lg hover:bg-teal-50 transition-colors"
+                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
               >
                 Edit Profile
               </button>
@@ -230,202 +307,189 @@ const MyProfile: React.FC = () => {
           </div>
 
           {/* Profile Info */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="mt-8 space-y-6">
+              {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
+                  <label className="block text-sm font-medium text-gray-700">Username</label>
               {isEditing ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                     <input
                       type="text"
-                      value={editData.name || ''}
-                      onChange={(e) => setEditData((prev) => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-lg"
-                      placeholder="Your full name"
-                      required
+                      value={editData.username || ''}
+                      onChange={(e) => setEditData({ ...editData, username: e.target.value })}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
                     />
+                  ) : (
+                    <p className="mt-1 text-gray-900">{profile.username}</p>
+                  )}
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={profile.email}
-                      className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 text-lg"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                  {isEditing ? (
                     <input
                       type="tel"
-                      value={editData.phone || ''}
-                      onChange={(e) => setEditData((prev) => ({ ...prev, phone: e.target.value }))}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-lg"
-                      placeholder="Your phone number"
+                      value={editData.phoneNumber || ''}
+                      onChange={(e) => setEditData({ ...editData, phoneNumber: e.target.value })}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <input
-                      type="text"
-                      value={editData.location || ''}
-                      onChange={(e) => setEditData((prev) => ({ ...prev, location: e.target.value }))}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-lg"
-                      placeholder="Your location"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-                    <textarea
-                      value={editData.bio || ''}
-                      onChange={(e) => setEditData((prev) => ({ ...prev, bio: e.target.value }))}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-lg"
-                      placeholder="Tell us about yourself"
-                      rows={4}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-extrabold text-gray-900">{profile.name}</h1>
-                    {profile.verified && (
-                      <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full font-medium">
-                        Verified
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center text-gray-600">
-                      <Mail className="h-5 w-5 mr-3" />
-                      <span className="text-lg">{profile.email}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Phone className="h-5 w-5 mr-3" />
-                      <span className="text-lg">{profile.phone || 'No phone added'}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <MapPin className="h-5 w-5 mr-3" />
-                      <span className="text-lg">{profile.location || 'No location added'}</span>
-                    </div>
-                  </div>
-                  {profile.bio && (
-                    <div className="mt-4">
-                      <h3 className="text-xl font-semibold text-gray-800 mb-2">About</h3>
-                      <p className="text-lg text-gray-600">{profile.bio}</p>
-                    </div>
+                  ) : (
+                    <p className="mt-1 text-gray-900">{profile.phoneNumber}</p>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Location</label>
+                  {isEditing ? (
+                    <div className="mt-1 flex space-x-2">
+                      <input
+                        type="text"
+                        value={editData.profile?.location || ''}
+                        onChange={(e) => setEditData({
+                          ...editData,
+                          profile: { ...editData.profile, location: e.target.value }
+                        })}
+                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                        placeholder="Enter location or use current location"
+                      />
+                      <button
+                        onClick={getCurrentLocation}
+                        disabled={isGettingLocation}
+                        className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                      >
+                        {isGettingLocation ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                            Getting Location...
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="h-4 w-4 mr-2" />
+                            Use Current Location
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-gray-900">{profile.profile?.location || 'Not specified'}</p>
+                  )}
+                  </div>
+
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editData.profile?.addressString || ''}
+                      onChange={(e) => setEditData({
+                        ...editData,
+                        profile: { ...editData.profile, addressString: e.target.value }
+                      })}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                    />
+                  ) : (
+                    <p className="mt-1 text-gray-900">{profile.profile?.addressString || 'Not specified'}</p>
               )}
             </div>
 
-            {/* Stats and Skills */}
             <div>
-              {/* Stats Section */}
-              <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center text-gray-600">
-                    <Star className="h-5 w-5 mr-3 text-yellow-400" />
-                    <span className="text-lg">{profile.rating || 0} ({profile.completedJobs || 0} jobs)</span>
-                  </div>
-                  <div className="flex items-center text-gray-600">
-                    <Briefcase className="h-5 w-5 mr-3" />
-                    <span className="text-lg">{profile.yearsOfExperience || 0} Years of Experience</span>
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-gray-900">{profile.email}</p>
                 </div>
               </div>
 
-              {/* Skills Section */}
-              {profile.role === 'worker' && (
-                <div className="mt-6">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-4">Skills</h3>
+              {/* Bio */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Bio</label>
+                {isEditing ? (
+                  <textarea
+                    value={editData.profile?.bio || ''}
+                    onChange={(e) => setEditData({
+                      ...editData,
+                      profile: { ...editData.profile, bio: e.target.value }
+                    })}
+                    rows={4}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                  />
+                ) : (
+                  <p className="mt-1 text-gray-900">{profile.profile?.bio || 'No bio yet'}</p>
+                )}
+              </div>
+
+              {/* Skills */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Skills</label>
+                {isEditing ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={newSkill}
+                        onChange={(e) => setNewSkill(e.target.value)}
+                        placeholder="Add a skill"
+                        className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                      />
+                      <button
+                        onClick={handleSkillAdd}
+                        className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
                   <div className="flex flex-wrap gap-2">
-                    {(isEditing ? editData.skills : profile.skills)?.map((skill) => (
+                      {editData.profile?.skills?.map((skill) => (
                       <span
                         key={skill}
-                        className="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-sm flex items-center shadow-sm"
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-teal-100 text-teal-800"
                       >
                         {skill}
-                        {isEditing && (
                           <button
                             onClick={() => handleSkillRemove(skill)}
-                            className="ml-2 text-teal-700 hover:text-teal-800"
+                            className="ml-2 text-teal-600 hover:text-teal-800"
                           >
                             <X className="h-4 w-4" />
                           </button>
-                        )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {profile.profile?.skills?.map((skill) => (
+                      <span
+                        key={skill}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-teal-100 text-teal-800"
+                      >
+                        {skill}
                       </span>
                     ))}
-                    {isEditing && (
-                      <div className="flex space-x-2 mt-2">
-                        <input
-                          type="text"
-                          placeholder="Add skill"
-                          value={newSkill}
-                          onChange={(e) => setNewSkill(e.target.value)}
-                          className="px-3 py-1 border rounded-full text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        />
-                        <button
-                          onClick={handleSkillAdd}
-                          className="px-3 py-1 bg-teal-600 text-white rounded-full text-sm hover:bg-teal-700 transition-colors flex items-center"
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Add
-                        </button>
                       </div>
                     )}
                   </div>
+
+              {/* Job History */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Projects</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {jobHistory.map((job) => (
+                    <div
+                      key={job._id}
+                      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                      <h4 className="font-medium text-gray-900">{job.job.title}</h4>
+                      <p className="text-sm text-gray-500 mt-1">{job.job.description}</p>
+                      <div className="mt-2 flex items-center text-sm text-gray-500">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span>{job.job.location}</span>
                 </div>
-              )}
+                      <div className="mt-2 text-sm font-medium text-teal-600">
+                        KES {job.job.budget.toLocaleString()}
             </div>
           </div>
-
-          {/* Portfolio Section */}
-          <div className="mt-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Recent Projects</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { title: 'E-Commerce Platform', description: 'Built a scalable e-commerce site using React and Node.js.', link: 'https://example.com/ecommerce' },
-                { title: 'Task Management App', description: 'A productivity app with real-time collaboration using Firebase.', link: 'https://example.com/taskapp' },
-                { title: 'Portfolio Website', description: 'A personal portfolio built with Next.js and Tailwind CSS.', link: 'https://example.com/portfolio' },
-              ].map((project) => (
-                <div key={project.title} className="bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                  <h4 className="text-lg font-semibold text-gray-800">{project.title}</h4>
-                  <p className="text-gray-600 mt-2">{project.description}</p>
-                  <a
-                    href={project.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-teal-600 hover:underline mt-2 inline-block"
-                  >
-                    View Project
-                  </a>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex justify-center space-x-4 mt-8">
-            <button
-              onClick={() => {
-                navigator.share({
-                  title: `${profile.name}'s Profile`,
-                  text: `Check out my profile on BlueCollar!`,
-                  url: window.location.href,
-                }).catch(() => toast.error('Sharing not supported on this device'));
-              }}
-              className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-            >
-              <Share2 className="h-5 w-5 mr-2" /> Share Profile
-            </button>
-            <a
-              href="/resume.pdf"
-              download
-              className="flex items-center px-4 py-2 border border-teal-600 text-teal-600 rounded-lg hover:bg-teal-50 transition-colors"
-            >
-              <FileText className="h-5 w-5 mr-2" /> Download Resume
-            </a>
           </div>
         </div>
       </div>

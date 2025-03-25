@@ -34,6 +34,7 @@ const CreateJob: React.FC = () => {
     budget: '',
     skillsRequired: [] as string[],
     duration: '',
+    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // Default to 30 days from now
   });
 
   // Handle input changes
@@ -75,7 +76,7 @@ const CreateJob: React.FC = () => {
       }
 
       // Create the job object with proper typing
-      const newJob: Omit<Job, '_id' | 'employerId' | 'createdAt' | 'status'> = {
+      const newJob: Omit<Job, '_id' | 'employerId' | 'createdAt'> = {
         title: job.title,
         description: job.description,
         category: job.category,
@@ -84,7 +85,14 @@ const CreateJob: React.FC = () => {
         budget: Number(job.budget),
         skillsRequired: job.skillsRequired,
         duration: job.duration,
-        status: 'open' as const,
+        expirationDate: job.expirationDate,
+        requirements: {
+          isRemote: false,
+          numberOfOpenings: 1,
+          isConfidential: false,
+        },
+        status: 'open',
+        applications: [],
       };
 
       // Send to the server
@@ -284,6 +292,26 @@ const CreateJob: React.FC = () => {
               className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-dark focus:border-teal-dark"
               required
             />
+          </div>
+
+          {/* Expiration Date */}
+          <div>
+            <label htmlFor="expirationDate" className="block text-sm font-medium text-gray-700">
+              Job Expiration Date
+            </label>
+            <input
+              type="datetime-local"
+              id="expirationDate"
+              name="expirationDate"
+              value={job.expirationDate}
+              onChange={handleChange}
+              min={new Date().toISOString().slice(0, 16)}
+              className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-teal-dark focus:border-teal-dark"
+              required
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              The job will be hidden from public view after this date
+            </p>
           </div>
 
           {/* Submit Button */}

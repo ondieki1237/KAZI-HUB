@@ -19,6 +19,7 @@ import {
   FileText,
   AlertCircle,
   X,
+  Share2, // Added Share2 icon for the share button
 } from 'lucide-react';
 import { jobs, profiles } from '../services/api';
 import { Job } from '../types';
@@ -168,6 +169,48 @@ const JobDetail: React.FC = () => {
     } finally {
       setApplying(false);
     }
+  };
+
+  const handleShareJob = () => {
+    if (!jobId) return;
+
+    // Construct the shareable URL
+    const jobUrl = `${window.location.origin}/jobs/${jobId}`;
+    const shareText = `Check out this job on BlueCollar: ${job?.title}\n\n${jobUrl}`;
+
+    // Check if Web Share API is supported (typically on mobile devices)
+    if (navigator.share) {
+      navigator
+        .share({
+          title: job?.title || 'Job Opportunity',
+          text: shareText,
+          url: jobUrl,
+        })
+        .then(() => {
+          console.log('Job shared successfully');
+          toast.success('Job shared successfully!');
+        })
+        .catch((error) => {
+          console.error('Error sharing job:', error);
+          // Fallback to copy if sharing fails
+          copyToClipboard(jobUrl);
+        });
+    } else {
+      // Fallback for desktops/laptops: Copy to clipboard
+      copyToClipboard(jobUrl);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        toast.success('Job link copied to clipboard!');
+      })
+      .catch((error) => {
+        console.error('Error copying to clipboard:', error);
+        toast.error('Failed to copy link');
+      });
   };
 
   const renderApplicationForm = () => (
@@ -361,6 +404,16 @@ const JobDetail: React.FC = () => {
                     <Calendar className="h-5 w-5 mr-2" />
                     <span>{new Date(job.createdAt).toLocaleDateString()}</span>
                   </div>
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    <span>Expires: {job.expirationDate ? new Date(job.expirationDate).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) : 'Not set'}</span>
+                  </div>
                 </div>
               </div>
               <div className="p-6">
@@ -454,6 +507,13 @@ const JobDetail: React.FC = () => {
                     Contact Employer
                   </button>
                 )}
+                <button
+                  onClick={handleShareJob}
+                  className="w-full flex items-center justify-center py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                >
+                  <Share2 className="h-5 w-5 mr-2" />
+                  Share Job
+                </button>
               </div>
             </div>
           </div>

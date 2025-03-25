@@ -120,6 +120,7 @@ router.get('/:id', async (req, res) => {
     const formattedJob = {
       ...job,
       createdAt: job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString(),
+      expirationDate: job.expirationDate ? new Date(job.expirationDate).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       applications: job.applications || [],
       skillsRequired: job.skillsRequired || [],
       status: job.status || 'open',
@@ -328,7 +329,8 @@ router.post('/', verifyToken, async (req, res) => {
     const job = new Job({
       ...req.body,
       employerId: req.user.id, // Use the ID from the authenticated user
-      status: 'open'
+      status: 'open',
+      expirationDate: req.body.expirationDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default to 30 days if not provided
     });
 
     const savedJob = await job.save();

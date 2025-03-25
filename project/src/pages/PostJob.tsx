@@ -37,6 +37,7 @@ function PostJob() {
     locationCity: '',
     budget: 0,
     duration: '',
+    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // Default to 30 days from now
     requirements: {
       isRemote: false,
       numberOfOpenings: 1,
@@ -295,6 +296,24 @@ function PostJob() {
             placeholder="Enter budget in KES"
             required
           />
+        </div>
+
+        {/* Expiration Date */}
+        <div className="mb-4">
+          <label className="block text-gray-700 font-bold mb-2">Job Expiration Date</label>
+          <input
+            type="datetime-local"
+            value={jobData.expirationDate}
+            onChange={(e) =>
+              setJobData({ ...jobData, expirationDate: e.target.value })
+            }
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500"
+            required
+            min={new Date().toISOString().slice(0, 16)}
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            After this date, the job will no longer be visible to the public
+          </p>
         </div>
 
         {/* Submit Button */}

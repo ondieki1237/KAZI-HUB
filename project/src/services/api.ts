@@ -1,10 +1,31 @@
 import axios from 'axios';
-import type { Job, JobApplication, User, VerificationDocument, Payment } from '../types';
+import type { Job, JobApplication } from '../types';
 import { toast } from 'react-hot-toast';
+
+interface ProfileData {
+  _id: string;
+  username: string;
+  email: string;
+  phoneNumber: string;
+  role: 'worker' | 'employer';
+  verified: boolean;
+  profile?: {
+    location?: string;
+    bio?: string;
+    avatar?: string;
+    skills?: string[];
+    rating?: number;
+    completedJobs?: number;
+    yearsOfExperience?: number;
+    addressString?: string; // Added explicitly for clarity
+  };
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://192.168.1.157:5000/api', // Use env variable with fallback
+  baseURL: process.env.REACT_APP_API_URL || 'http://192.168.1.157:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -59,13 +80,12 @@ api.interceptors.response.use(
   }
 );
 
-// Existing services remain largely unchanged, just adding notifications
 export const auth = {
   login: async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data;
-
+      
       if (!token || !user || !user._id) {
         throw new Error('Invalid response from server');
       }
@@ -101,10 +121,10 @@ export const auth = {
         ...userData,
         password: '[REDACTED]',
       });
-
+      
       const response = await api.post('/auth/register', userData);
       console.log('Registration response:', response.data);
-
+      
       return response.data;
     } catch (error: any) {
       console.error('Registration API error:', error.response?.data || error);
@@ -117,8 +137,12 @@ export const auth = {
   },
 };
 
+export interface ExtendedJob extends Job {
+  expirationDate: string;
+}
+
 export const jobs = {
-  getFeatured: async (category?: string): Promise<Job[]> => {
+  getFeatured: async (category?: string): Promise<ExtendedJob[]> => {
     try {
       const response = await api.get('/jobs/featured', {
         params: { category },
@@ -130,7 +154,7 @@ export const jobs = {
       throw error;
     }
   },
-  create: async (jobData: Omit<Job, '_id' | 'employerId' | 'createdAt'>) => {
+  create: async (jobData: Omit<ExtendedJob, '_id' | 'employerId' | 'createdAt'>) => {
     try {
       console.log('Creating job with data:', jobData);
       const response = await api.post('/jobs', jobData);
@@ -147,7 +171,7 @@ export const jobs = {
 
       console.log('Fetching job with ID:', id);
       const response = await api.get(`/jobs/${id}`);
-
+      
       if (!response.data) throw new Error('No data received from server');
 
       console.log('Job details response:', response.data);
@@ -167,13 +191,23 @@ export const jobs = {
       throw error;
     }
   },
-  updateStatus: async (jobId: string, status: Job['status']) => {
-    const response = await api.patch(`/jobs/${jobId}/status`, { status });
-    return response.data;
+  updateStatus: async (jobId: string, status: ExtendedJob['status']) => {
+    try {
+      const response = await api.patch(`/jobs/${jobId}/status`, { status });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating job status:', error);
+      throw error;
+    }
   },
   search: async (params: { category?: string; location?: string; query?: string }) => {
-    const response = await api.get('/jobs/search', { params });
-    return response.data;
+    try {
+      const response = await api.get('/jobs/search', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error searching jobs:', error);
+      throw error;
+    }
   },
   getMyPostedJobs: async () => {
     try {
@@ -186,8 +220,13 @@ export const jobs = {
     }
   },
   createNotification: async (jobId: string, notification: { type: string; message: string }) => {
-    const response = await api.post(`/jobs/${jobId}/notifications`, notification);
-    return response.data;
+    try {
+      const response = await api.post(`/jobs/${jobId}/notifications`, notification);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
   },
   getJobApplications: async (jobId: string) => {
     try {
@@ -287,17 +326,61 @@ export const jobs = {
       throw error;
     }
   },
+  deleteJob: async (jobId: string): Promise<void> => {
+    try {
+      const response = await api.delete(`/jobs/${jobId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      throw error;
+    }
+  },
+  updateExpirationDate: async (jobId: string, expirationDate: string): Promise<ExtendedJob> => {
+    try {
+      const response = await api.put(`/jobs/${jobId}/expiration`, { expirationDate });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating expiration date:', error);
+      throw error;
+    }
+  },
 };
 
 export const profiles = {
-  getMyProfile: async () => {
+  getMyProfile: async (): Promise<ProfileData> => {
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No authentication token found');
 
       const response = await api.get('/users/my-profile');
       console.log('Profile data received:', response.data);
-      return response.data;
+
+      // Transform the data to match ProfileData interface
+      const profileData: ProfileData = {
+        _id: response.data._id,
+        username: response.data.username,
+        email: response.data.email,
+        phoneNumber: response.data.phoneNumber || '',
+        role: response.data.role,
+        verified: response.data.verified,
+        createdAt: response.data.createdAt,
+        updatedAt: response.data.updatedAt,
+      };
+
+      if (response.data.profile) {
+        profileData.profile = {
+          location: response.data.profile.location,
+          bio: response.data.profile.bio,
+          avatar: response.data.profile.avatar,
+          skills: response.data.profile.skills || [],
+          rating: response.data.profile.rating,
+          completedJobs: response.data.profile.completedJobs || 0,
+          yearsOfExperience: response.data.profile.yearsOfExperience,
+          addressString: response.data.profile.addressString, // Added
+        };
+      }
+
+      return profileData;
     } catch (error: any) {
       console.error('Error fetching profile:', error);
       if (error.response?.status === 401) {
@@ -307,24 +390,63 @@ export const profiles = {
       throw error;
     }
   },
-  updateProfile: async (profileData: Partial<User>) => {
+  updateProfile: async (profileData: Partial<ProfileData>): Promise<ProfileData> => {
     try {
-      const response = await api.patch('/users/profile', profileData);
+      // Transform the input data to match backend expectations
+      const backendData = {
+        name: profileData.username,
+        phone: profileData.phoneNumber,
+        locationString: profileData.profile?.location, // Store original location string
+        location: profileData.profile?.location ? {
+          type: 'Point',
+          coordinates: profileData.profile.location.split(',').map(coord => parseFloat(coord.trim())).reverse() // Reverse to [lng, lat]
+        } : undefined,
+        bio: profileData.profile?.bio,
+        skills: profileData.profile?.skills,
+        addressString: profileData.profile?.addressString
+      };
+
+      console.log('Sending profile update data:', backendData);
+
+      const response = await api.patch('/users/profile', backendData);
       console.log('Profile update response:', response.data);
-      return response.data;
+
+      // Transform the response data to match ProfileData interface
+      const updatedProfile: ProfileData = {
+        _id: response.data._id,
+        username: response.data.name || response.data.username,
+        email: response.data.email,
+        phoneNumber: response.data.phone || response.data.phoneNumber || '',
+        role: response.data.role,
+        verified: response.data.verified,
+        createdAt: response.data.createdAt,
+        updatedAt: response.data.updatedAt,
+        profile: {
+          location: response.data.profile?.location || response.data.locationString || '',
+          bio: response.data.profile?.bio || response.data.bio || '',
+          avatar: response.data.profile?.avatar || response.data.avatar || '',
+          skills: response.data.profile?.skills || response.data.skills || [],
+          rating: response.data.profile?.rating || response.data.rating || 0,
+          completedJobs: response.data.profile?.completedJobs || response.data.completedJobs || 0,
+          yearsOfExperience: response.data.profile?.yearsOfExperience || response.data.yearsOfExperience || 0,
+          addressString: response.data.profile?.addressString || response.data.addressString || ''
+        }
+      };
+
+      return updatedProfile;
     } catch (error: any) {
       console.error('Error updating profile:', error);
       throw error;
     }
   },
-  uploadAvatar: async (formData: FormData) => {
+  uploadAvatar: async (formData: FormData): Promise<{ avatar: string }> => {
     try {
       const response = await api.post('/users/profile/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       console.log('Avatar upload response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading avatar:', error);
       throw error;
     }
@@ -339,14 +461,19 @@ export const profiles = {
     }
   },
   uploadDocument: async (userId: string, file: File, type: 'cv' | 'certificate' | 'other') => {
-    const formData = new FormData();
-    formData.append('document', file);
-    formData.append('type', type);
-
-    const response = await api.post(`/users/${userId}/documents`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
+    try {
+      const formData = new FormData();
+      formData.append('document', file);
+      formData.append('type', type);
+      
+      const response = await api.post(`/users/${userId}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      throw error;
+    }
   },
   saveCV: async (cvData: any, userId: string) => {
     try {
@@ -371,12 +498,22 @@ export const profiles = {
 
 export const payments = {
   initiateMpesa: async (jobId: string, amount: number, phone: string) => {
-    const response = await api.post('/payments/mpesa/initiate', { jobId, amount, phone });
-    return response.data;
+    try {
+      const response = await api.post('/payments/mpesa/initiate', { jobId, amount, phone });
+      return response.data;
+    } catch (error) {
+      console.error('Error initiating Mpesa payment:', error);
+      throw error;
+    }
   },
   getStatus: async (paymentId: string) => {
-    const response = await api.get(`/payments/${paymentId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/payments/${paymentId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching payment status:', error);
+      throw error;
+    }
   },
 };
 
@@ -419,7 +556,6 @@ export const chat = {
         return [];
       }
       
-      // Ensure the user ID is a valid MongoDB ObjectId
       if (!/^[0-9a-fA-F]{24}$/.test(user._id)) {
         console.error('Invalid user ID format:', user._id);
         return [];
@@ -450,12 +586,22 @@ export const skills = {
     }
   },
   getAll: async () => {
-    const response = await api.get('/skills');
-    return response.data;
+    try {
+      const response = await api.get('/skills');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching skills:', error);
+      throw error;
+    }
   },
   getByUser: async (userId: string) => {
-    const response = await api.get(`/skills/user/${userId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/skills/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user skills:', error);
+      throw error;
+    }
   },
   getById: async (skillId: string) => {
     try {
@@ -489,7 +635,6 @@ export const admin = {
   },
 };
 
-// New notifications service
 export const notifications = {
   getUserNotifications: async (userId: string): Promise<Notification[]> => {
     try {

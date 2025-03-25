@@ -66,23 +66,10 @@ const documentUpload = multer({
   }
 });
 
-// Get user profile
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching user', error: error.message });
-  }
-});
-
 // Get current user's profile
 router.get('/my-profile', verifyToken, async (req, res) => {
   try {
-    console.log('Fetching profile with user ID:', req.user.id);
+    console.log('Fetching profile for user ID:', req.user.id);
 
     const user = await User.findById(req.user.id)
       .select('-password')
@@ -93,112 +80,166 @@ router.get('/my-profile', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    console.log('Profile fetched successfully:', user);
     res.json(user);
   } catch (error) {
-    console.error('Error in /my-profile:', error);
-    res.status(500).json({ message: 'Error fetching profile' });
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Error fetching profile', error: error.message });
   }
 });
 
-// Update user profile
+// Get user profile by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password').lean();
+    if (!user) {
+      console.log(`User not found for ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+    console.log(`User profile fetched for ID: ${req.params.id}`);
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user by ID:', error);
+    res.status(500).json({ message: 'Error fetching user', error: error.message });
+  }
+});
+
+// Update current user's profile
 router.patch('/profile', verifyToken, async (req, res) => {
   try {
-    const { name, phone, location, bio, skills } = req.body;
+    const { name, phone, location, locationString, bio, skills, addressString } = req.body;
+
+    console.log('Updating profile for user ID:', req.user.id, 'with data:', { 
+      name, phone, location, locationString, bio, skills, addressString 
+    });
 
     const user = await User.findById(req.user.id);
     if (!user) {
+      console.log('No user found for ID:', req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Update fields only if provided
     if (name) user.name = name;
     if (phone) user.phone = phone;
-    if (location) user.location = location;
-    if (bio !== undefined) user.bio = bio;
-    if (skills) user.skills = skills;
+    if (location && location.type === 'Point' && Array.isArray(location.coordinates)) {
+      user.location = location;
+      user.locationString = locationString;
+    }
+    if (bio !== undefined) user.bio = bio; // Allow empty string to clear bio
+    if (Array.isArray(skills)) user.skills = skills; // Ensure skills is an array
+    if (addressString) user.addressString = addressString;
 
     await user.save();
 
+    // Fetch the updated user and structure the response
     const updatedUser = await User.findById(req.user.id)
       .select('-password')
       .lean();
 
-    res.json(updatedUser);
+    // Structure the response to match the frontend expectations
+    const response = {
+      ...updatedUser,
+      profile: {
+        location: updatedUser.locationString,
+        bio: updatedUser.bio,
+        avatar: updatedUser.avatar,
+        skills: updatedUser.skills,
+        rating: updatedUser.rating,
+        completedJobs: updatedUser.completedJobs,
+        yearsOfExperience: updatedUser.yearsOfExperience,
+        addressString: updatedUser.addressString
+      }
+    };
+
+    console.log('Profile updated successfully:', response);
+    res.json(response);
   } catch (error) {
     console.error('Error updating profile:', error);
-    res.status(500).json({ message: 'Error updating profile' });
+    res.status(500).json({ message: 'Error updating profile', error: error.message });
   }
 });
 
-// Upload avatar
+// Upload avatar for current user
 router.post('/profile/avatar', verifyToken, avatarUpload.single('avatar'), async (req, res) => {
   try {
+    console.log('Avatar upload request for user ID:', req.user.id);
+
     if (!req.file) {
+      console.log('No file uploaded');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const user = await User.findById(req.user.id);
     if (!user) {
+      console.log('No user found for ID:', req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.avatar = `/uploads/avatars/${req.file.filename}`;
+    const avatarPath = `/uploads/avatars/${req.file.filename}`;
+    user.avatar = avatarPath;
     await user.save();
 
-    res.json({ avatar: user.avatar });
+    console.log('Avatar uploaded successfully:', { avatar: avatarPath });
+    res.json({ avatar: avatarPath });
   } catch (error) {
     console.error('Error uploading avatar:', error);
-    res.status(500).json({ message: 'Error uploading avatar' });
+    res.status(500).json({ message: 'Error uploading avatar', error: error.message });
   }
 });
 
 // Get user documents
 router.get('/:userId/documents', verifyToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
+    console.log('Fetching documents for user ID:', req.params.userId);
+
+    const user = await User.findById(req.params.userId).lean();
     if (!user) {
+      console.log('No user found for ID:', req.params.userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(user.documents);
+    res.json(user.documents || []);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching documents' });
+    console.error('Error fetching documents:', error);
+    res.status(500).json({ message: 'Error fetching documents', error: error.message });
   }
 });
 
-// Upload document
+// Upload document for a user
 router.post('/:userId/documents', verifyToken, documentUpload.single('document'), async (req, res) => {
-  console.log("Upload document request received:", {
-    userId: req.params.userId,
-    file: req.file,
-    body: req.body
-  });
-
   try {
+    console.log('Upload document request received:', {
+      userId: req.params.userId,
+      file: req.file ? req.file.originalname : 'No file',
+      type: req.body.type
+    });
+
     const user = await User.findById(req.params.userId);
     if (!user) {
+      console.log('No user found for ID:', req.params.userId);
       return res.status(404).json({ message: 'User not found' });
     }
+
     if (!req.file) {
+      console.log('No file uploaded');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const documentUrl = `/uploads/documents/${req.file.filename}`;
-
-    user.documents.push({
-      type: req.body.type || 'document',
+    const document = {
+      type: req.body.type || 'other',
       url: documentUrl,
       name: req.file.originalname,
       uploadedAt: new Date()
-    });
+    };
 
+    user.documents = user.documents || [];
+    user.documents.push(document);
     await user.save();
-    console.log("Document uploaded successfully:", {
-      userId: user._id,
-      documentUrl,
-      documentName: req.file.originalname
-    });
 
-    res.status(201).json(user.documents[user.documents.length - 1]);
+    console.log('Document uploaded successfully:', document);
+    res.status(201).json(document);
   } catch (error) {
     console.error('Error uploading document:', error);
     res.status(500).json({

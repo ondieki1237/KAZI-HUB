@@ -43,7 +43,19 @@ const userSchema = new mongoose.Schema(
       type: String
     },
     location: {
-      type: String
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number],
+        default: undefined
+      }
+    },
+    locationString: {
+      type: String,
+      default: ''
     },
     bio: {
       type: String
@@ -117,7 +129,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Index for location (if needed)
-userSchema.index({ location: 1 }, { background: true });
+userSchema.index({ location: '2dsphere' });
 
 // Middleware to hash password before saving
 userSchema.pre('save', async function (next) {
