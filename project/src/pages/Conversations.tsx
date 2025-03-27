@@ -1,105 +1,163 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // Added to check user authentication
+import { useAuth } from '../contexts/AuthContext';
 import { chat } from '../services/api';
-import PageHeader from '../components/PageHeader';
-import Footer from '../components/Footer'; // Added for footer consistency
-import { MessageSquare } from 'lucide-react';
-import toast from 'react-hot-toast'; // Added for error handling
+import io from 'socket.io-client';
+import { MessageSquare, ArrowLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface Conversation {
+  _id: string;
   jobId: string;
-  jobTitle: string;
-  otherUser: {
-    _id: string;
-    name: string;
-    email: string;
-  };
+  participants: { _id: string; name: string; avatar?: string }[];
   lastMessage: string;
+  unreadCount: number;
   updatedAt: string;
 }
 
 const Conversations: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth(); // Added to ensure user is logged in
+  const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [socket, setSocket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      toast.error('Please login to view your conversations');
-      navigate('/login');
-      return;
+  const fetchConversations = async () => {
+    try {
+      setLoading(true);
+      const data = await chat.getConversations();
+      setConversations(data.sort((a: Conversation, b: Conversation) => 
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      ));
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      toast.error('Failed to load conversations');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const fetchConversations = async () => {
-      try {
-        setLoading(true);
-        const response = await chat.getConversations(); // Same API call as Chat page
-        setConversations(response || []); // Ensure empty array if null
-      } catch (error: any) {
-        console.error('Error fetching conversations:', error);
-        toast.error(error.response?.data?.message || 'Failed to load conversations');
-      } finally {
-        setLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchConversations();
-  }, [user, navigate]);
+  }, []);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+    const newSocket = io(socketUrl, {
+      auth: {
+        userId: user._id
+      }
+    });
+
+    newSocket.on('new_message', (message: any) => {
+      setConversations(prev => {
+        const updated = prev.map(conv =>
+          conv._id === message.conversationId
+            ? {
+                ...conv,
+                lastMessage: message.content,
+                unreadCount: conv.unreadCount + 1,
+                updatedAt: new Date().toISOString()
+              }
+            : conv
+        );
+        // Sort conversations by most recent message
+        return updated.sort((a: Conversation, b: Conversation) => 
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+      });
+      
+      // Play notification sound
+      new Audio('/notification.mp3').play().catch(console.error);
+      toast.success('New message received');
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
+  }, [user?._id]);
 
   const handleConversationClick = (conversation: Conversation) => {
-    navigate(`/chat/${conversation.jobId}/${conversation.otherUser._id}`);
+    // Find the other participant (not the current user)
+    const otherParticipant = conversation.participants.find(p => p._id !== user?._id);
+    if (!otherParticipant) return;
+
+    // Navigate to the chat page with jobId and userId
+    navigate(`/chat/${conversation.jobId}/${otherParticipant._id}`);
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <PageHeader title="Messages" />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          {loading ? (
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-lg shadow-sm">
-              <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-gray-500">No conversations yet</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Start chatting by applying to jobs or posting jobs
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {conversations.map((conversation) => (
-                <div
-                  key={`${conversation.jobId}-${conversation.otherUser._id}`}
-                  onClick={() => handleConversationClick(conversation)}
-                  className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-gray-800">{conversation.jobTitle}</h3>
-                    <span className="text-sm text-gray-500">
-                      {new Date(conversation.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex flex-col text-gray-600 mt-2">
-                    <div className="flex items-center">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      <span className="font-medium">{conversation.otherUser.name}</span>
-                    </div>
-                    <span className="text-sm text-gray-500 ml-6">
-                      {conversation.otherUser.email}
-                    </span>
-                  </div>
-                  <p className="text-gray-500 text-sm mt-2 truncate">{conversation.lastMessage}</p>
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center h-16">
+            <button
+              onClick={() => navigate(-1)}
+              className="mr-4 p-2 rounded-full hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-xl font-bold">Messages</h1>
+          </div>
         </div>
-      </main>
-      <Footer />
+      </div>
+
+      {/* Conversations List */}
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="text-center py-12">
+            <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500">No conversations yet</p>
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {conversations.map(conversation => (
+              <li
+                key={conversation._id}
+                onClick={() => handleConversationClick(conversation)}
+                className="flex items-center justify-between p-4 bg-white shadow rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center flex-1">
+                  <img
+                    src={conversation.participants[0].avatar || `https://ui-avatars.com/api/?name=${conversation.participants[0].name}`}
+                    alt={conversation.participants[0].name}
+                    className="h-12 w-12 rounded-full mr-4"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {conversation.participants[0].name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(conversation.updatedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500 truncate mt-1">
+                      {conversation.lastMessage}
+                    </p>
+                  </div>
+                </div>
+                {conversation.unreadCount > 0 && (
+                  <div className="ml-4 flex items-center">
+                    <span className="bg-teal-500 text-white text-xs font-medium rounded-full h-5 w-5 flex items-center justify-center">
+                      {conversation.unreadCount}
+                    </span>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };

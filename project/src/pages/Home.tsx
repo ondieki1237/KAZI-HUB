@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Briefcase, Bell, MapPin, Clock, Flame } from 'lucide-react';
+import { Search, Briefcase, Bell, MapPin, Clock, Flame, MessageSquare } from 'lucide-react';
 import Menu from '../components/Menu';
 import { useNavigate } from 'react-router-dom';
 import { jobs, chat } from '../services/api';
@@ -22,6 +22,7 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Job[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   const jobCategories = {
     'All': [],
@@ -223,6 +224,25 @@ function Home() {
     handleSearch(query);
   };
 
+  const fetchUnreadMessageCount = async () => {
+    try {
+      const conversations = await chat.getConversations();
+      const totalUnread = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
+      setUnreadMessageCount(totalUnread);
+    } catch (error) {
+      console.error('Error fetching unread message count:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (socket && user) {
+      socket.on('new_message', () => {
+        fetchUnreadMessageCount();
+      });
+    }
+    fetchUnreadMessageCount();
+  }, [socket, user]);
+
   return (
     <div id="main-content" className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 transition-all duration-300">
       {/* Header */}
@@ -249,6 +269,27 @@ function Home() {
             </div>
           </div>
           <div className="flex items-center space-x-6">
+            <button
+              onClick={() => {
+                if (isAuthenticated) {
+                  navigate('/messages');
+                } else {
+                  toast.error('Please login to view messages');
+                  navigate('/login');
+                }
+              }}
+              className="text-sm font-medium hover:text-teal-200 transition-colors flex items-center"
+            >
+              <div className="relative">
+                <MessageSquare className="h-5 w-5 mr-1" />
+                {unreadMessageCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center animate-bounce">
+                    {unreadMessageCount}
+                  </span>
+                )}
+              </div>
+              Messages
+            </button>
             <button
               onClick={() => navigate('/cv-maker')}
               className="text-sm font-medium hover:text-teal-200 transition-colors flex items-center"
