@@ -102,7 +102,7 @@ function App() {
             <Route path="/cv-maker" element={<CVMaker />} />
             <Route path="/jobs/:jobId" element={<JobDetail />} />
             <Route path="/profile/my-profile" element={<MyProfile />} />
-            <Route path="/messages" element={<Conversations />} />
+            <Route path="/conversations" element={<Conversations />} />
             <Route path="/chat/:jobId/:userId" element={<Chat />} />
             <Route path="/jobs/:jobId/applications" element={<ViewApplications />} />
             <Route path="/settings" element={<Settings />} />

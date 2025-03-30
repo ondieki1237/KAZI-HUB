@@ -272,7 +272,7 @@ function Home() {
             <button
               onClick={() => {
                 if (isAuthenticated) {
-                  navigate('/messages');
+                  navigate('/conversations');
                 } else {
                   toast.error('Please login to view messages');
                   navigate('/login');
@@ -579,10 +579,10 @@ function Home() {
                 <p className="text-gray-800 font-bold">New Message</p>
                 <p className="text-gray-600">{notification.content}</p>
                 <button
-                  onClick={() => navigate(`/chat/${notification.jobId}/${notification.jobTitle}`)}
+                  onClick={() => navigate(`/conversations`)}
                   className="text-teal-600 hover:text-teal-800 text-sm mt-2 font-semibold"
                 >
-                  View Message
+                  View Messages
                 </button>
               </div>
             )}

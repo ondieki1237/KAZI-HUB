@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { MessageSquare, Search, CheckCheck, ArrowLeft, Home } from "lucide-react"
-import Link from "next/link"
 import { chat } from "../services/api"
 import { useAuth } from "../contexts/AuthContext"
+import toast from 'react-hot-toast'
 
 interface Conversation {
   _id: string
@@ -28,8 +28,8 @@ interface Conversation {
   unreadCount: number
 }
 
-export default function Conversations() {
-  const router = useRouter()
+const Conversations: React.FC = () => {
+  const navigate = useNavigate()
   const { user: currentUser } = useAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,9 +44,16 @@ export default function Conversations() {
       if (silent) setIsRefreshing(true)
 
       const response = await chat.getConversations()
-      setConversations(response)
+      if (Array.isArray(response)) {
+        setConversations(response)
+      } else {
+        console.error("Invalid response format:", response)
+        setConversations([])
+      }
     } catch (error) {
       console.error("Error fetching conversations:", error)
+      toast.error("Failed to load conversations")
+      setConversations([])
     } finally {
       setLoading(false)
       setIsRefreshing(false)
@@ -87,7 +94,7 @@ export default function Conversations() {
   }
 
   const navigateToChat = (jobId: string, userId: string) => {
-    router.push(`/chat/${jobId}/${userId}`)
+    navigate(`/chat/${jobId}/${userId}`)
   }
 
   if (!currentUser) {
@@ -96,7 +103,7 @@ export default function Conversations() {
         <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
         <p className="text-lg text-gray-600">Please log in to view your messages</p>
         <button
-          onClick={() => router.push("/login")}
+          onClick={() => navigate('/login')}
           className="mt-4 px-6 py-2 bg-teal-500 text-white rounded-full hover:bg-teal-600"
         >
           Log In
@@ -112,10 +119,10 @@ export default function Conversations() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-100">
+              <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100">
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <Link href="/" className="p-2 rounded-full hover:bg-gray-100">
+              <Link to="/" className="p-2 rounded-full hover:bg-gray-100">
                 <Home className="h-5 w-5" />
               </Link>
             </div>
@@ -238,3 +245,5 @@ export default function Conversations() {
     </div>
   )
 }
+
+export default Conversations
