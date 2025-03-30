@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "fac74f55-7469-4a31-a1d7-c24ed6168cab"
+      }
+    },
+    "android": {
+      "package": "com.sethmakori.bluecollarserver"
+    }
+  }
+}
