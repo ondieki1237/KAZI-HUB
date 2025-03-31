@@ -76,7 +76,7 @@ const DesktopNav: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             title: "Tools & Resources",
             items: [
               { icon: FileText, label: "CV Maker", path: "/cv-maker", description: "Create your professional CV" },
-              { icon: MessageSquare, label: "Messages", path: "/messages", description: "Communicate with others" },
+              { icon: MessageSquare, label: "Messages", path: "/conversations", description: "Chat with employers and workers" },
               { icon: CreditCard, label: "Wallet", path: "/wallet", description: "Manage earnings and payments" },
               { icon: Bell, label: "Notifications", path: "/notifications", description: "View your latest alerts" },
             ],
@@ -322,7 +322,7 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
             title: "Tools & Resources",
             items: [
               { icon: FileText, label: "CV Maker", path: "/cv-maker" },
-              { icon: MessageSquare, label: "Messages", path: "/messages" },
+              { icon: MessageSquare, label: "Messages", path: "/conversations" },
               { icon: CreditCard, label: "Wallet", path: "/wallet" },
               { icon: Bell, label: "Notifications", path: "/notifications" },
             ],

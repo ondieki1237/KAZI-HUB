@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { MessageSquare, Search, CheckCheck, ArrowLeft, Home } from "lucide-react"
+import { MessageSquare, Search, CheckCheck, ArrowLeft, Home, Phone, Video } from "lucide-react"
 import { chat } from "../services/api"
 import { useAuth } from "../contexts/AuthContext"
 import toast from 'react-hot-toast'
@@ -14,6 +14,12 @@ interface Conversation {
     title: string
   }
   recipientId: {
+    _id: string
+    name: string
+    email: string
+    avatar?: string
+  }
+  senderId: {
     _id: string
     name: string
     email: string
@@ -37,15 +43,21 @@ const Conversations: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const fetchConversations = useCallback(async (silent = false) => {
-    if (!currentUser) return
+    if (!currentUser?._id) return
 
     try {
       if (!silent) setLoading(true)
       if (silent) setIsRefreshing(true)
 
       const response = await chat.getConversations()
+      
       if (Array.isArray(response)) {
-        setConversations(response)
+        // Transform conversations to show the other participant
+        const transformedConversations = response.map(conv => ({
+          ...conv,
+          recipientId: conv.senderId._id === currentUser._id ? conv.recipientId : conv.senderId
+        }))
+        setConversations(transformedConversations)
       } else {
         console.error("Invalid response format:", response)
         setConversations([])
@@ -61,15 +73,17 @@ const Conversations: React.FC = () => {
   }, [currentUser])
 
   useEffect(() => {
-    fetchConversations()
-    const interval = setInterval(() => fetchConversations(true), 10000)
-    return () => clearInterval(interval)
-  }, [fetchConversations])
+    if (currentUser?._id) {
+      fetchConversations()
+      const interval = setInterval(() => fetchConversations(true), 10000)
+      return () => clearInterval(interval)
+    }
+  }, [fetchConversations, currentUser])
 
   const filteredConversations = conversations.filter(
     (conv) =>
       conv.recipientId.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.jobId.title.toLowerCase().includes(searchQuery.toLowerCase()),
+      conv.jobId.title.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const formatTime = (dateString: string) => {
@@ -94,7 +108,16 @@ const Conversations: React.FC = () => {
   }
 
   const navigateToChat = (jobId: string, userId: string) => {
-    navigate(`/chat/${jobId}/${userId}`)
+    // Ensure we're navigating to chat with the other participant
+    const chatPartnerId = userId === currentUser?._id ? 
+      conversations.find(c => c.jobId._id === jobId)?.recipientId._id : 
+      userId
+    
+    if (chatPartnerId) {
+      navigate(`/chat/${jobId}/${chatPartnerId}`)
+    } else {
+      toast.error("Could not find chat partner")
+    }
   }
 
   if (!currentUser) {
@@ -115,25 +138,29 @@ const Conversations: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-white shadow-sm">
+      <div className="bg-teal-600 text-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100">
+              <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-teal-700">
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <Link to="/" className="p-2 rounded-full hover:bg-gray-100">
-                <Home className="h-5 w-5" />
-              </Link>
+              <h1 className="text-xl font-semibold">Messages</h1>
             </div>
-            <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
-            <div className="w-10"></div> {/* Spacer for alignment */}
+            <div className="flex items-center space-x-2">
+              <button className="p-2 rounded-full hover:bg-teal-700">
+                <Video className="h-5 w-5" />
+              </button>
+              <button className="p-2 rounded-full hover:bg-teal-700">
+                <Phone className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white border-b">
+      <div className="bg-white sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -151,7 +178,7 @@ const Conversations: React.FC = () => {
       </div>
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-white">
         {loading ? (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
@@ -163,69 +190,58 @@ const Conversations: React.FC = () => {
             {searchQuery && <p className="text-sm mt-1">Try a different search term</p>}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-100">
             {filteredConversations.map((conversation) => (
               <div
                 key={conversation._id}
                 onClick={() => navigateToChat(conversation.jobId._id, conversation.recipientId._id)}
-                className={`px-4 py-4 sm:px-6 hover:bg-gray-50 cursor-pointer ${
-                  conversation.unreadCount > 0 ? "bg-teal-50" : "bg-white"
+                className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-150 ${
+                  conversation.unreadCount > 0 ? "bg-teal-50" : ""
                 }`}
               >
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0 relative">
                     <img
                       src={
                         conversation.recipientId.avatar ||
-                        `https://ui-avatars.com/api/?name=${conversation.recipientId.name}`
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          conversation.recipientId.name
+                        )}&background=26A69A&color=fff`
                       }
                       alt={conversation.recipientId.name}
-                      className="h-12 w-12 rounded-full"
+                      className="h-12 w-12 rounded-full object-cover"
                     />
+                    {conversation.unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-5 w-5 bg-teal-500 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                        {conversation.unreadCount}
+                      </span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p
-                        className={`text-sm font-medium truncate ${
-                          conversation.unreadCount > 0 ? "text-gray-900" : "text-gray-700"
-                        }`}
-                      >
+                      <p className="text-sm font-semibold text-gray-900 truncate">
                         {conversation.recipientId.name}
                       </p>
-                      <p className="text-xs text-gray-500 whitespace-nowrap">
+                      <p className="text-xs text-gray-500">
                         {conversation.lastMessage && formatTime(conversation.lastMessage.createdAt)}
                       </p>
                     </div>
-                    <p className="text-xs text-gray-500 truncate mt-1">{conversation.jobId.title}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <p
-                        className={`text-sm truncate ${
-                          conversation.unreadCount > 0 ? "font-medium text-gray-900" : "text-gray-500"
-                        }`}
-                      >
-                        {conversation.lastMessage ? (
-                          conversation.lastMessage.senderId === currentUser._id ? (
-                            <span className="flex items-center">
-                              <span className="mr-1">You:</span>
-                              {conversation.lastMessage.content}
-                              {conversation.lastMessage.read ? (
-                                <CheckCheck className="h-3 w-3 ml-1 text-teal-500 flex-shrink-0" />
-                              ) : (
-                                <CheckCheck className="h-3 w-3 ml-1 text-gray-400 flex-shrink-0" />
-                              )}
-                            </span>
-                          ) : (
-                            conversation.lastMessage.content
-                          )
-                        ) : (
-                          "Start a conversation"
-                        )}
-                      </p>
-                      {conversation.unreadCount > 0 && (
-                        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-teal-500 rounded-full">
-                          {conversation.unreadCount}
-                        </span>
+                    <p className="text-xs text-teal-600 font-medium truncate mt-0.5">
+                      {conversation.jobId.title}
+                    </p>
+                    <div className="flex items-center mt-0.5">
+                      {conversation.lastMessage && conversation.lastMessage.senderId === currentUser._id && (
+                        <CheckCheck className={`h-4 w-4 mr-1 ${
+                          conversation.lastMessage.read ? "text-teal-500" : "text-gray-400"
+                        }`} />
                       )}
+                      <p className="text-sm text-gray-500 truncate">
+                        {conversation.lastMessage
+                          ? `${conversation.lastMessage.senderId === currentUser._id ? "You: " : ""}${
+                              conversation.lastMessage.content
+                            }`
+                          : "Start a conversation"}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -237,8 +253,8 @@ const Conversations: React.FC = () => {
 
       {/* Refresh Indicator */}
       {isRefreshing && (
-        <div className="absolute bottom-4 right-4 bg-teal-600 text-white px-3 py-1 rounded-full text-sm shadow-lg flex items-center">
-          <div className="animate-spin rounded-full h-3 w-3 border-2 border-white mr-2"></div>
+        <div className="fixed bottom-4 right-4 bg-teal-600 text-white px-3 py-1 rounded-full text-sm shadow-lg flex items-center">
+          <div className="animate-spin rounded-full h-3 w-3 border-2 border-white mr-2" />
           Updating...
         </div>
       )}
