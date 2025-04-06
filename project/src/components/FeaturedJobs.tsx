@@ -67,11 +67,17 @@ function FeaturedJobs() {
                 <span>{job.locationArea}, {job.locationCity}</span>
               </div>
             </div>
-            {job.status === 'open' && (
-              <span className="px-3 py-1 bg-green-100 text-green-600 text-sm rounded-full font-medium">
-                Open
-              </span>
-            )}
+            <span className={`px-3 py-1 text-sm rounded-full font-medium ${
+              job.status === 'open'
+                ? 'bg-green-100 text-green-600'
+                : job.status === 'in-progress'
+                ? 'bg-blue-100 text-blue-600'
+                : job.status === 'closed'
+                ? 'bg-red-100 text-red-600'
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+            </span>
           </div>
           <div className="flex items-center justify-between mt-6">
             <div className="flex items-center text-teal-700">

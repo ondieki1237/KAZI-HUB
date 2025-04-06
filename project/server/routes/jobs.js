@@ -508,4 +508,46 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Delete job
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    console.log('Attempting to delete/close job:', req.params.id);
+    console.log('User ID:', req.user.id);
+
+    // Validate job ID
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log('Invalid job ID format');
+      return res.status(400).json({ message: 'Invalid job ID format' });
+    }
+
+    // Find the job
+    const job = await Job.findById(req.params.id);
+    
+    // Check if job exists
+    if (!job) {
+      console.log('Job not found');
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    // Check if user is the employer
+    if (job.employerId.toString() !== req.user.id) {
+      console.log('User not authorized to delete job');
+      return res.status(403).json({ message: 'Not authorized to delete this job' });
+    }
+
+    // Update status to closed instead of deleting
+    job.status = 'closed';
+    await job.save();
+
+    console.log('Job closed successfully');
+    res.json({ message: 'Job closed successfully' });
+  } catch (error) {
+    console.error('Error in DELETE /jobs/:id:', error);
+    res.status(500).json({ 
+      message: 'Error closing job', 
+      error: error.message 
+    });
+  }
+});
+
 export default router;

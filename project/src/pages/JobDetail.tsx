@@ -434,6 +434,8 @@ const JobDetail: React.FC = () => {
                         ? 'bg-green-100 text-green-700'
                         : job.status === 'in-progress'
                         ? 'bg-blue-100 text-blue-700'
+                        : job.status === 'closed'
+                        ? 'bg-red-100 text-red-700'
                         : 'bg-gray-100 text-gray-700'
                     }`}
                   >
@@ -485,6 +487,11 @@ const JobDetail: React.FC = () => {
                   <div className="p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
                     <AlertCircle className="h-5 w-5 mr-2" />
                     You have already applied for this job
+                  </div>
+                ) : job.status === 'closed' ? (
+                  <div className="p-4 bg-red-50 text-red-700 rounded-lg flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2" />
+                    This job is no longer accepting applications
                   </div>
                 ) : !authUser ? (
                   <button
