@@ -16,9 +16,9 @@ const Register: React.FC = () => {
     confirmPassword: '',
     phone: '',
     location: '',
-    role: 'worker' as 'worker' | 'employer'
+    role: 'worker' as 'worker' | 'employer',
   });
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false); // State for success pop-up
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,14 +26,13 @@ const Register: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate passwords match
+    setLoading(true);
+
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
-    // Validate phone number format
     const phoneRegex = /^\d{10,12}$/;
     if (!phoneRegex.test(formData.phone.replace(/[^0-9]/g, ''))) {
       toast.error('Please enter a valid phone number');
@@ -41,240 +40,257 @@ const Register: React.FC = () => {
     }
 
     try {
-      setLoading(true);
-      
-      // Log the data being sent (excluding password)
-      console.log('Sending registration data:', {
-        ...formData,
-        password: '[REDACTED]',
-        confirmPassword: '[REDACTED]'
+      const response = await auth.register({
+        name: formData.name,
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        phoneNumber: formData.phone,
+        role: formData.role
       });
-
-      // Remove confirmPassword before sending to API
-      const { confirmPassword, ...registrationData } = formData;
       
-      const response = await auth.register(registrationData);
-      console.log('Registration response:', response);
-
-      if (response.token && response.user) {
-        // Store auth data
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        
-        // Show success pop-up
-        setShowSuccessPopup(true);
-        
-        // Hide pop-up and navigate after animation (e.g., 3 seconds)
-        setTimeout(() => {
-          setShowSuccessPopup(false);
-          navigate('/login');
-        }, 3000);
-      } else {
-        throw new Error('Invalid response from server');
-      }
+      toast.success('Registration successful! Please check your email for verification.');
+      navigate('/verification-pending', { state: { email: formData.email } });
     } catch (error: any) {
-      console.error('Registration error:', error);
-      toast.error(
-        error.response?.data?.message || 
-        error.message || 
-        'Registration failed. Please try again.'
-      );
+      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-teal-50 flex flex-col">
       <PageHeader title="Create Account" />
-      
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto">
-          {/* Form Card */}
-          <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
-            <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+
+      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-teal-100 space-y-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900 bg-gradient-to-r from-teal-dark to-teal-medium bg-clip-text text-transparent">
               Join BlueCollar
             </h2>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                    placeholder="John Doe"
-                  />
-                </div>
-              </div>
-
-              {/* Email Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                    placeholder="john@example.com"
-                  />
-                </div>
-              </div>
-
-              {/* Phone Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                    placeholder="+254 700 000000"
-                  />
-                </div>
-              </div>
-
-              {/* Location Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                    placeholder="Nairobi, Kenya"
-                  />
-                </div>
-              </div>
-
-              {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  I want to
-                </label>
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                >
-                  <option value="worker">Find Work</option>
-                  <option value="employer">Hire Workers</option>
-                </select>
-              </div>
-
-              {/* Username Input */}
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                  placeholder="Choose a username"
-                />
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              {/* Confirm Password Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-dark focus:border-transparent"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-teal-dark text-white py-3 rounded-lg hover:bg-teal-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            <p className="mt-2 text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                className="font-medium text-teal-dark hover:text-teal-medium transition-colors duration-200"
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
-              </button>
-
-              {/* Login Link */}
-              <p className="text-center text-gray-600 mt-4">
-                Already have an account?{' '}
-                <Link to="/login" className="text-teal-dark hover:text-teal-medium">
-                  Login here
-                </Link>
-              </p>
-            </form>
+                Sign in here
+              </Link>
+            </p>
           </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name */}
+            <div className="relative">
+              <label htmlFor="name" className="sr-only">
+                Full Name
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <User className="h-5 w-5 text-teal-400" />
+              </div>
+              <input
+                id="name"
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 pl-10 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+                placeholder="Full Name"
+              />
+            </div>
+
+            {/* Username */}
+            <div className="relative">
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <User className="h-5 w-5 text-teal-400" />
+              </div>
+              <input
+                id="username"
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 pl-10 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+                placeholder="Username"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="relative">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email Address
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-teal-400" />
+              </div>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 pl-10 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+                placeholder="Email address"
+              />
+            </div>
+
+            {/* Phone */}
+            <div className="relative">
+              <label htmlFor="phone" className="sr-only">
+                Phone Number
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Phone className="h-5 w-5 text-teal-400" />
+              </div>
+              <input
+                id="phone"
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 pl-10 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+                placeholder="Phone number"
+              />
+            </div>
+
+            {/* Location */}
+            <div className="relative">
+              <label htmlFor="location" className="sr-only">
+                Location
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MapPin className="h-5 w-5 text-teal-400" />
+              </div>
+              <input
+                id="location"
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 pl-10 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+                placeholder="Location"
+              />
+            </div>
+
+            {/* Role */}
+            <div>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+              >
+                <option value="worker">Find Work (Worker)</option>
+                <option value="employer">Hire Workers (Employer)</option>
+              </select>
+            </div>
+
+            {/* Password */}
+            <div className="relative">
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-teal-400" />
+              </div>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 pl-10 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+                placeholder="Password"
+              />
+            </div>
+
+            {/* Confirm Password */}
+            <div className="relative">
+              <label htmlFor="confirmPassword" className="sr-only">
+                Confirm Password
+              </label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-teal-400" />
+              </div>
+              <input
+                id="confirmPassword"
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                className="appearance-none relative block w-full px-3 py-3 pl-10 border border-teal-200 placeholder-gray-400 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-medium focus:border-teal-medium transition-all duration-200 hover:border-teal-300"
+                placeholder="Confirm Password"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className={`group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-teal-dark to-teal-medium transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-medium ${
+                loading
+                  ? 'opacity-75 cursor-not-allowed'
+                  : 'hover:from-teal-medium hover:to-teal-light'
+              }`}
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Creating Account...
+                </span>
+              ) : (
+                'Create Account'
+              )}
+            </button>
+          </form>
         </div>
       </main>
 
       {/* Success Pop-up */}
       {showSuccessPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 shadow-lg transform transition-all duration-500 ease-out animate-pop-in"
-               style={{ animation: 'popIn 0.5s ease-out forwards' }}>
+          <div className="bg-white rounded-xl p-8 shadow-lg border border-teal-100 transform transition-all duration-500 ease-out animate-pop-in">
             <div className="text-center">
-              <h3 className="text-2xl font-bold text-teal-600 mb-2">Sign up was successful! 🎉</h3>
-              <p className="text-lg text-gray-700 mb-4">Welcome 😊</p>
+              <h3 className="text-2xl font-bold text-teal-dark mb-2">
+                Sign up successful! 🎉
+              </h3>
+              <p className="text-lg text-gray-700 mb-4">Welcome to BlueCollar 😊</p>
               <Link
                 to="/login"
-                className="inline-block bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors"
+                className="inline-block bg-gradient-to-r from-teal-dark to-teal-medium text-white py-2 px-6 rounded-md hover:from-teal-medium hover:to-teal-light transition-all duration-200"
                 onClick={() => setShowSuccessPopup(false)}
               >
                 Log in

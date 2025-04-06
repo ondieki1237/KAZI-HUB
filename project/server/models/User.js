@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 // Define CV Schema
 const cvSchema = new mongoose.Schema({
@@ -32,8 +33,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      lowercase: true,
-      trim: true
+      trim: true,
+      lowercase: true
     },
     password: {
       type: String,
@@ -66,7 +67,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ['worker', 'employer', 'admin'],
-      required: true
+      default: 'worker'
     },
     skills: {
       type: [String],
@@ -84,9 +85,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    yearsOfExperience: {
-      type: Number,
-      default: 0
+    verificationCode: {
+      code: String,
+      expiresAt: Date
+    },
+    passwordReset: {
+      token: String,
+      expiresAt: Date
     },
     username: {
       type: String,
@@ -133,20 +138,35 @@ userSchema.index({ location: '2dsphere' });
 
 // Middleware to hash password before saving
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 10);
   }
+  next();
 });
 
 // Method to compare passwords
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Generate verification code
+userSchema.methods.generateVerificationCode = function() {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  this.verificationCode = {
+    code: code,
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+  };
+  return code;
+};
+
+// Generate password reset token
+userSchema.methods.generatePasswordResetToken = function() {
+  const token = crypto.randomBytes(32).toString('hex');
+  this.passwordReset = {
+    token: token,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+  };
+  return token;
 };
 
 // Export the User model

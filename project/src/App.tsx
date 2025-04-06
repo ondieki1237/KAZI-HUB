@@ -31,7 +31,10 @@ import AdminSkills from './pages/admin/Skills';
 import AppliedJobs from './pages/AppliedJobs';
 import LandingPage from './pages/LandingPage';
 import Notifications from './pages/Notifications';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import { NotificationProvider } from './contexts/NotificationContext';
+import VerificationPending from './pages/VerificationPending';
 
 // Protected Admin Route
 const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -142,6 +145,9 @@ function App() {
                 <Notifications />
               </ProtectedRoute>
             } />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/verification-pending" element={<VerificationPending />} />
           </Routes>
         </NotificationProvider>
       </AuthProvider>

@@ -24,6 +24,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/socket.io': {
+          target: `ws://${HOST}:${PORT}`,
+          ws: true,
+          changeOrigin: true,
+          secure: false,
+        }
       },
     },
     preview: {

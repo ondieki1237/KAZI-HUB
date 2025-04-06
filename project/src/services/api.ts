@@ -25,7 +25,7 @@ interface ProfileData {
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://192.168.1.157:5000/api',
+  baseURL: '/api',  // This will use the Vite proxy
   headers: {
     'Content-Type': 'application/json',
   },
@@ -81,6 +81,57 @@ api.interceptors.response.use(
 );
 
 export const auth = {
+  register: async (userData: {
+    name: string;
+    username: string;
+    email: string;
+    password: string;
+    phoneNumber: string;
+    role: 'worker' | 'employer';
+  }) => {
+    try {
+      console.log('Making registration request with data:', {
+        ...userData,
+        password: '[REDACTED]',
+      });
+      
+      const response = await api.post('/auth/register', userData);
+      console.log('Registration response:', response.data);
+      
+      return { ...response.data, email: userData.email };
+    } catch (error: any) {
+      console.error('Registration API error:', error.response?.data || error);
+      throw error;
+    }
+  },
+
+  verifyEmail: async (email: string, code: string) => {
+    try {
+      const response = await api.post('/auth/verify', { email, code });
+      const { token, user } = response.data;
+
+      if (token && user) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Email verification error:', error);
+      throw error;
+    }
+  },
+
+  resendVerification: async (email: string) => {
+    try {
+      const response = await api.post('/auth/resend-verification', { email });
+      return response.data;
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      throw error;
+    }
+  },
+
   login: async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login', { email, password });
@@ -103,34 +154,35 @@ export const auth = {
       });
 
       return { token, user };
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.data?.requiresVerification) {
+        throw new Error('EMAIL_NOT_VERIFIED');
+      }
       console.error('Login error:', error);
       throw error;
     }
   },
-  register: async (userData: {
-    name: string;
-    email: string;
-    password: string;
-    phone: string;
-    role: 'worker' | 'employer';
-    location: string;
-  }) => {
+
+  requestPasswordReset: async (email: string) => {
     try {
-      console.log('Making registration request with data:', {
-        ...userData,
-        password: '[REDACTED]',
-      });
-      
-      const response = await api.post('/auth/register', userData);
-      console.log('Registration response:', response.data);
-      
+      const response = await api.post('/auth/forgot-password', { email });
       return response.data;
-    } catch (error: any) {
-      console.error('Registration API error:', error.response?.data || error);
+    } catch (error) {
+      console.error('Password reset request error:', error);
       throw error;
     }
   },
+
+  resetPassword: async (token: string, newPassword: string) => {
+    try {
+      const response = await api.post('/auth/reset-password', { token, newPassword });
+      return response.data;
+    } catch (error) {
+      console.error('Password reset error:', error);
+      throw error;
+    }
+  },
+
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
