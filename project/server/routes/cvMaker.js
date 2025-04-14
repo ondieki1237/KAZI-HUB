@@ -59,7 +59,7 @@ router.post('/generate', async (req, res) => {
     doc.end();
 
     // Send the file URL back to the client
-    const fileUrl = `http://192.168.1.157:5000/cvs/${fileName}`;
+    const fileUrl = `http://192.168.1.110:5000/cvs/${fileName}`;
     
     res.json({
       success: true,

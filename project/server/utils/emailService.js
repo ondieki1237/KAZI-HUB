@@ -1,4 +1,8 @@
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Log email configuration on startup
 console.log('Email configuration:', {
@@ -15,7 +19,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // Verify transporter configuration
-transporter.verify(function(error, success) {
+transporter.verify(function (error, success) {
   if (error) {
     console.error('Email transporter verification failed:', error);
   } else {
@@ -25,7 +29,7 @@ transporter.verify(function(error, success) {
 
 export const sendVerificationEmail = async (email, code) => {
   console.log('Attempting to send verification email to:', email);
-  
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -49,7 +53,7 @@ export const sendVerificationEmail = async (email, code) => {
       to: mailOptions.to,
       subject: mailOptions.subject
     });
-    
+
     await transporter.sendMail(mailOptions);
     console.log('Verification email sent successfully');
     return true;
@@ -66,7 +70,7 @@ export const sendVerificationEmail = async (email, code) => {
 
 export const sendPasswordResetEmail = async (email, resetToken) => {
   const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-  
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -96,4 +100,4 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
     console.error('Error sending password reset email:', error);
     return false;
   }
-}; 
+};

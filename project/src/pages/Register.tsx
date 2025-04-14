@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Lock, Phone, MapPin } from 'lucide-react';
 import { auth } from '../services/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
+import { useAuth } from '../contexts/AuthContext';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { setUser, setIsAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -48,6 +50,14 @@ const Register: React.FC = () => {
         phoneNumber: formData.phone,
         role: formData.role
       });
+      
+      // Save token and user data to local storage
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Update auth context
+      setUser(response.data.user);
+      setIsAuthenticated(true);
       
       toast.success('Registration successful! Please check your email for verification.');
       navigate('/verification-pending', { state: { email: formData.email } });

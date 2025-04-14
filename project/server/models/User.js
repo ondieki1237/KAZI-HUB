@@ -146,7 +146,24 @@ userSchema.pre('save', async function (next) {
 
 // Method to compare passwords
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+  try {
+    if (!this.password) {
+      console.error('No password hash found for user');
+      return false;
+    }
+    if (!candidatePassword) {
+      console.error('No candidate password provided');
+      return false;
+    }
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    return isMatch;
+  } catch (error) {
+    console.error('Password comparison error:', {
+      error: error.message,
+      stack: error.stack
+    });
+    throw new Error('Error comparing passwords');
+  }
 };
 
 // Generate verification code

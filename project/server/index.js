@@ -28,7 +28,7 @@ const io = initializeSocket(server);
 
 // Environment variables
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '192.168.1.157';
+const HOST = process.env.HOST || '192.168.1.110';
 const CLIENT_PORT = 5173;
 
 // CORS configuration
@@ -68,6 +68,7 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // MongoDB Connection
+console.log('Attempting to connect to MongoDB...');
 mongoose.connect(process.env.MONGO_URL, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -78,18 +79,27 @@ mongoose.connect(process.env.MONGO_URL, {
 })
 .then(() => {
   console.log('✅ Connected to MongoDB successfully');
+  console.log('Connection string used:', process.env.MONGO_URL.replace(/\/\/[^:]+:[^@]+@/, '//[REDACTED]@'));
 })
 .catch((err) => {
-  console.error('❌ MongoDB Connection Error:', err);
+  console.error('❌ MongoDB Connection Error:', {
+    message: err.message,
+    code: err.code,
+    name: err.name
+  });
 });
 
 // Add MongoDB connection error handling
 mongoose.connection.on('error', (err) => {
-  console.error('MongoDB error:', err);
+  console.error('MongoDB error:', {
+    message: err.message,
+    code: err.code,
+    name: err.name
+  });
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.error('MongoDB disconnected');
+  console.error('MongoDB disconnected. Attempting to reconnect...');
 });
 
 // API Routes

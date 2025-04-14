@@ -4,8 +4,35 @@ import User from '../models/User.js';
 import Joi from 'joi';
 import { verifyToken } from '../middleware/auth.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
+
+// At the top of the file, after imports
+if (!process.env.JWT_SECRET) {
+  console.error('JWT_SECRET is not defined in environment variables');
+  process.exit(1);
+}
+
+// Validate JWT_SECRET length
+if (process.env.JWT_SECRET.length < 32) {
+  console.error('JWT_SECRET is too short. It should be at least 32 characters long');
+  process.exit(1);
+}
+
+console.log('JWT_SECRET validation passed');
+
+// Add connection check middleware
+const checkDbConnection = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    console.error('Database not connected. Current state:', mongoose.connection.readyState);
+    return res.status(500).json({ message: 'Database connection not available' });
+  }
+  next();
+};
+
+// Apply middleware to all routes
+router.use(checkDbConnection);
 
 // Validation schema
 const registerSchema = Joi.object({
@@ -239,15 +266,40 @@ router.post('/resend-verification', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
   try {
+    console.log('Login attempt received:', { email: req.body.email });
+    
     const { email, password } = req.body;
     
+    if (!email || !password) {
+      console.log('Missing credentials:', { email: !!email, password: !!password });
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
     // Find user
-    const user = await User.findOne({ email });
+    console.log('Finding user with email:', email);
+    let user;
+    try {
+      user = await User.findOne({ email });
+      console.log('User search result:', user ? 'Found' : 'Not found');
+    } catch (dbError) {
+      console.error('Database error while finding user:', {
+        error: dbError.message,
+        stack: dbError.stack
+      });
+      return res.status(500).json({ 
+        message: 'Database error while finding user',
+        error: dbError.message
+      });
+    }
+    
     if (!user) {
+      console.log('User not found:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    console.log('User found, checking verification status');
     if (!user.verified) {
+      console.log('User not verified:', email);
       return res.status(403).json({ 
         message: 'Email not verified',
         requiresVerification: true,
@@ -256,36 +308,78 @@ router.post('/login', async (req, res) => {
     }
 
     // Verify password
-    const isMatch = await user.comparePassword(password);
+    console.log('Verifying password for user:', email);
+    let isMatch;
+    try {
+      isMatch = await user.comparePassword(password);
+      console.log('Password verification result:', isMatch ? 'Match' : 'No match');
+    } catch (passwordError) {
+      console.error('Error comparing passwords:', {
+        error: passwordError.message,
+        stack: passwordError.stack
+      });
+      return res.status(500).json({ 
+        message: 'Error verifying password',
+        error: passwordError.message
+      });
+    }
+    
     if (!isMatch) {
+      console.log('Invalid password for user:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Create token with user ID
-    const token = jwt.sign(
-      { 
-        userId: user._id.toString() // Ensure userId is included
-      }, 
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    console.log('Creating token for user:', email);
+    let token;
+    try {
+      token = jwt.sign(
+        { 
+          userId: user._id.toString()
+        }, 
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      console.log('Token created successfully');
+    } catch (tokenError) {
+      console.error('Error creating token:', {
+        error: tokenError.message,
+        stack: tokenError.stack
+      });
+      return res.status(500).json({ 
+        message: 'Error creating authentication token',
+        error: tokenError.message
+      });
+    }
 
-    console.log('Generated token for user:', {
+    console.log('Login successful for user:', {
       userId: user._id,
+      email: user.email,
       tokenPreview: token.substring(0, 20) + '...'
     });
 
     // Send response without password
     const userResponse = user.toObject();
     delete userResponse.password;
+    delete userResponse.verificationCode;
+    delete userResponse.passwordReset;
 
     res.json({
       token,
       user: userResponse
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Error logging in' });
+    console.error('Login error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
+    res.status(500).json({ 
+      message: 'Error logging in',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -349,12 +443,13 @@ router.post('/reset-password', async (req, res) => {
     // Update password and clear reset token
     user.password = newPassword;
     user.passwordReset = undefined;
+
     await user.save();
 
     res.json({ message: 'Password reset successful' });
   } catch (error) {
-    console.error('Password reset error:', error);
-    res.status(500).json({ message: 'Error resetting password' });
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Error resetting password', error: error.message });
   }
 });
 

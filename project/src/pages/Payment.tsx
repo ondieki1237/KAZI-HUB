@@ -76,7 +76,7 @@ const Payment: React.FC = () => {
         
         // Fetch employer's phone number
         const employerResponse = await axios.get(
-          `http://192.168.1.157:5000/api/users/${jobResponse.employerId._id}`,
+          `http://192.168.1.110:5000/api/users/${jobResponse.employerId._id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -137,7 +137,7 @@ const Payment: React.FC = () => {
 
       // First create payment record
       const paymentRecord = await axios.post(
-        'http://192.168.1.157:5000/api/payments',
+        'http://192.168.1.110:5000/api/payments',
         {
           jobId,
           workerId,
@@ -162,7 +162,7 @@ const Payment: React.FC = () => {
 
       // Then initiate M-Pesa payment
       const mpesaResponse = await axios.post(
-        'http://192.168.1.157:5000/api/mpesa/send-payment',
+        'http://192.168.1.110:5000/api/mpesa/send-payment',
         {
           phoneNumber: formattedPhone,
           amount: jobDetails!.budget,
