@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Joi from 'joi';
 import { verifyToken } from '../middleware/auth.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
+import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from '../utils/emailService.js';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -457,6 +457,28 @@ router.post('/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ message: 'Error resetting password', error: error.message });
+  }
+});
+
+// Welcome email endpoint
+router.post('/welcome-email', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+
+    if (!email || !name) {
+      return res.status(400).json({ message: 'Email and name are required' });
+    }
+
+    const sent = await sendWelcomeEmail(email, name);
+    
+    if (sent) {
+      res.status(200).json({ message: 'Welcome email sent successfully' });
+    } else {
+      res.status(500).json({ message: 'Failed to send welcome email' });
+    }
+  } catch (error) {
+    console.error('Welcome email error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 

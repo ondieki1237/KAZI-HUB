@@ -121,12 +121,25 @@ export const auth = {
       if (token && user) {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
+        
+        // Send welcome email after successful verification
+        await auth.sendWelcomeEmail(email, user.name);
       }
 
       return response.data;
     } catch (error) {
       console.error('Email verification error:', error);
       throw error;
+    }
+  },
+
+  sendWelcomeEmail: async (email: string, name: string) => {
+    try {
+      await api.post('/auth/welcome-email', { email, name });
+      console.log('Welcome email sent successfully');
+    } catch (error) {
+      console.error('Error sending welcome email:', error);
+      // Don't throw the error as this is not critical
     }
   },
 
