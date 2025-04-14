@@ -95,7 +95,15 @@ export const auth = {
         password: '[REDACTED]',
       });
       
-      const response = await api.post('/auth/register', userData);
+      // Transform the data to match server expectations
+      const { phoneNumber, ...rest } = userData;
+      const transformedData = {
+        ...rest,
+        phone: phoneNumber, // Convert phoneNumber to phone
+        location: 'Default Location', // Add required location field
+      };
+      
+      const response = await api.post('/auth/register', transformedData);
       console.log('Registration response:', response.data);
       
       return { ...response.data, email: userData.email };

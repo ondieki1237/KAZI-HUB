@@ -35,6 +35,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import { NotificationProvider } from './contexts/NotificationContext';
 import VerificationPending from './pages/VerificationPending';
+import EmailVerification from './components/EmailVerification';
 
 // Protected Admin Route
 const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -147,6 +148,7 @@ function App() {
             } />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/verification-pending" element={<VerificationPending />} />
           </Routes>
         </NotificationProvider>

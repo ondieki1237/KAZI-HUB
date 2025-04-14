@@ -83,14 +83,21 @@ router.post('/register', async (req, res) => {
       password: '[REDACTED]'
     });
 
+    // Transform request body to match schema
+    const transformedBody = {
+      ...req.body,
+      phone: req.body.phone || req.body.phoneNumber, // Accept either phone or phoneNumber
+      location: req.body.location || req.body.addressString || 'Default Location' // Make location optional with default
+    };
+
     // Validate input
-    const { error } = registerSchema.validate(req.body);
+    const { error } = registerSchema.validate(transformedBody);
     if (error) {
       console.log('Validation error:', error.details[0].message);
       return res.status(400).json({ message: error.details[0].message });
     }
 
-    const { email, password, name, phone, role, location, username } = req.body;
+    const { email, password, name, phone, role, location, username } = transformedBody;
 
     try {
       // Check if user exists (both email and username)
@@ -116,13 +123,13 @@ router.post('/register', async (req, res) => {
         username,
         email,
         password,
-        phone,
+        phone, // Using the transformed phone value
         role,
         location: {
           type: 'Point',
           coordinates: [0, 0] // Default coordinates
         },
-        locationString: '',
+        locationString: location,
         addressString: location
       });
 
