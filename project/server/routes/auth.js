@@ -198,44 +198,44 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ message: 'Email already verified' });
     }
 
-    if (!user.verificationCode || !user.verificationCode.code) {
-      return res.status(400).json({ message: 'No verification code found' });
-    }
-
-    if (new Date() > user.verificationCode.expiresAt) {
-      return res.status(400).json({ message: 'Verification code expired' });
-    }
-
-    if (user.verificationCode.code !== code) {
+    if (!user.verifyEmailCode(code)) {
       return res.status(400).json({ message: 'Invalid verification code' });
     }
 
-    // Mark user as verified
     user.verified = true;
     user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
     await user.save();
 
-    // Generate token
+    // Generate JWT token
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.json({
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(user.email, user.name);
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError);
+      // Don't fail the verification if welcome email fails
+    }
+
+    return res.status(200).json({
       message: 'Email verified successfully',
       token,
       user: {
-        _id: user._id,
+        id: user._id,
+        name: user.name,
         email: user.email,
-        username: user.username,
         role: user.role,
         verified: user.verified
       }
     });
   } catch (error) {
     console.error('Verification error:', error);
-    res.status(500).json({ message: 'Error verifying email' });
+    return res.status(500).json({ message: 'Error verifying email' });
   }
 });
 
@@ -467,6 +467,11 @@ router.post('/welcome-email', async (req, res) => {
 
     if (!email || !name) {
       return res.status(400).json({ message: 'Email and name are required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
 
     const sent = await sendWelcomeEmail(email, name);

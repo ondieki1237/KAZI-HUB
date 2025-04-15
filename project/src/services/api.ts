@@ -135,6 +135,7 @@ export const auth = {
 
   sendWelcomeEmail: async (email: string, name: string) => {
     try {
+      console.log('Sending welcome email to:', { email, name });
       await api.post('/auth/welcome-email', { email, name });
       console.log('Welcome email sent successfully');
     } catch (error) {

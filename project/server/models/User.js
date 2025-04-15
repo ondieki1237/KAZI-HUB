@@ -176,6 +176,19 @@ userSchema.methods.generateVerificationCode = function() {
   return code;
 };
 
+// Verify email verification code
+userSchema.methods.verifyEmailCode = function(code) {
+  if (!this.verificationCode || !this.verificationCode.code) {
+    return false;
+  }
+
+  if (new Date() > this.verificationCode.expiresAt) {
+    return false;
+  }
+
+  return this.verificationCode.code === code;
+};
+
 // Generate password reset token
 userSchema.methods.generatePasswordResetToken = function() {
   const token = crypto.randomBytes(32).toString('hex');
