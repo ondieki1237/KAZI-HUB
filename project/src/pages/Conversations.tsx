@@ -3,8 +3,9 @@ import { useNavigate, Link } from 'react-router-dom'
 import { MessageSquare, Search, CheckCheck, ArrowLeft, Home, Phone, Video } from "lucide-react"
 import { chat } from "../services/api"
 import { useAuth } from "../contexts/AuthContext"
-import toast from 'react-hot-toast'
 import { io, Socket } from 'socket.io-client'
+import ErrorModal from '../components/ErrorModal'
+import toast from 'react-hot-toast'
 
 interface Conversation {
   _id: string
@@ -56,6 +57,10 @@ const Conversations: React.FC = () => {
   const socketRef = useRef<Socket | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [error, setError] = useState<{ show: boolean; message: string; severity?: 'error' | 'warning' | 'info' }>({
+    show: false,
+    message: ''
+  })
 
   // Add window resize listener
   useEffect(() => {
@@ -86,11 +91,20 @@ const Conversations: React.FC = () => {
         setConversations(transformedConversations)
       } else {
         console.error("Invalid response format:", response)
+        setError({
+          show: true,
+          message: 'Failed to load conversations',
+          severity: 'error'
+        })
         setConversations([])
       }
     } catch (error: any) {
       console.error("Error fetching conversations:", error.response || error)
-      toast.error(error.response?.data?.message || "Failed to load conversations")
+      setError({
+        show: true,
+        message: error.response?.data?.message || 'Failed to load conversations',
+        severity: 'error'
+      })
       setConversations([])
     } finally {
       setLoading(false)
@@ -142,7 +156,11 @@ const Conversations: React.FC = () => {
     if (chatPartnerId) {
       navigate(`/chat/${jobId}/${chatPartnerId}`)
     } else {
-      toast.error("Could not find chat partner")
+      setError({
+        show: true,
+        message: 'Could not find chat partner',
+        severity: 'error'
+      })
     }
   }
 
@@ -247,18 +265,27 @@ const Conversations: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
+      <ErrorModal
+        isOpen={error.show}
+        message={error.message}
+        severity={error.severity}
+        onClose={() => setError({ show: false, message: '' })}
+      />
       {/* Conversations List - Hide on mobile when chat is selected */}
       <div className={`${
         isMobile && selectedChat ? 'hidden' : 'w-full md:w-1/3'
       } bg-white border-r border-gray-200`}>
-      {/* Header */}
+        {/* Header */}
         <div className="bg-teal-600 text-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <div className="flex items-center space-x-4">
                 <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-teal-700">
-                <ArrowLeft className="h-5 w-5" />
-              </button>
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <Link to="/" className="p-2 rounded-full hover:bg-teal-700">
+                  <Home className="h-5 w-5" />
+                </Link>
                 <h1 className="text-xl font-semibold">Messages</h1>
               </div>
               <div className="flex items-center space-x-2">
@@ -269,45 +296,45 @@ const Conversations: React.FC = () => {
                   <Phone className="h-5 w-5" />
                 </button>
               </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search Bar */}
-        <div className="bg-white sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
             </div>
-            <input
-              type="text"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            />
           </div>
         </div>
-      </div>
 
-      {/* Conversations List */}
+        {/* Search Bar */}
+        <div className="bg-white sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Conversations List */}
         <div className="flex-1 overflow-y-auto bg-white h-[calc(100vh-120px)]">
-        {loading ? (
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <MessageSquare className="h-12 w-12 mb-2" />
-            <p className="text-lg">No conversations found</p>
-            {searchQuery && <p className="text-sm mt-1">Try a different search term</p>}
-          </div>
-        ) : (
+          {loading ? (
+            <div className="flex justify-center items-center h-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <MessageSquare className="h-12 w-12 mb-2" />
+              <p className="text-lg">No conversations found</p>
+              {searchQuery && <p className="text-sm mt-1">Try a different search term</p>}
+            </div>
+          ) : (
             <div className="divide-y divide-gray-100">
-            {filteredConversations.map((conversation) => (
-              <div
-                key={conversation._id}
+              {filteredConversations.map((conversation) => (
+                <div
+                  key={conversation._id}
                   onClick={() => setSelectedChat(conversation)}
                   className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-150 ${
                     selectedChat?._id === conversation._id ? "bg-teal-50" : ""
@@ -315,29 +342,29 @@ const Conversations: React.FC = () => {
                 >
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0 relative">
-                    <img
-                      src={
-                        conversation.recipientId.avatar ||
+                      <img
+                        src={
+                          conversation.recipientId.avatar ||
                           `https://ui-avatars.com/api/?name=${encodeURIComponent(
                             conversation.recipientId.name
                           )}&background=26A69A&color=fff`
-                      }
-                      alt={conversation.recipientId.name}
+                        }
+                        alt={conversation.recipientId.name}
                         className="h-12 w-12 rounded-full object-cover"
-                    />
+                      />
                       {conversation.unreadCount > 0 && (
                         <span className="absolute -top-1 -right-1 h-5 w-5 bg-teal-500 text-white rounded-full flex items-center justify-center text-xs font-medium">
                           {conversation.unreadCount}
                         </span>
                       )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-gray-900 truncate">
-                        {conversation.recipientId.name}
-                      </p>
+                          {conversation.recipientId.name}
+                        </p>
                         <p className="text-xs text-gray-500">
-                        {conversation.lastMessage && formatTime(conversation.lastMessage.createdAt)}
+                          {conversation.lastMessage && formatTime(conversation.lastMessage.createdAt)}
                         </p>
                       </div>
                       <p className="text-xs text-teal-600 font-medium truncate mt-0.5">
@@ -412,7 +439,7 @@ const Conversations: React.FC = () => {
                     <div className="flex items-center justify-end space-x-1 mt-1">
                       <span className="text-xs opacity-75">
                         {formatTime(message.createdAt)}
-                            </span>
+                      </span>
                       {message.senderId === currentUser._id && (
                         <CheckCheck className={`h-4 w-4 ${message.read ? 'text-blue-400' : 'text-gray-400'}`} />
                       )}

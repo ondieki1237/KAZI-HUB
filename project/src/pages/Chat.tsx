@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { chat } from '../services/api';
 import { Home, ArrowLeft, Check, CheckCheck, MessageSquare } from 'lucide-react';
-import toast from 'react-hot-toast';
+import ErrorModal from '../components/ErrorModal';
 
 interface Message {
   _id: string;
@@ -32,6 +32,10 @@ const Chat: React.FC = () => {
   const [recipientDetails, setRecipientDetails] = useState<{ name: string; email: string } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<{ show: boolean; message: string; severity?: 'error' | 'warning' | 'info' }>({
+    show: false,
+    message: ''
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,7 +50,12 @@ const Chat: React.FC = () => {
       setMessages(response);
       if (!silent) scrollToBottom();
     } catch (error: any) {
-      if (!silent) toast.error(error.response?.data?.message || 'Failed to load messages');
+      const errorMessage = error.response?.data?.message || 'Failed to load messages';
+      setError({
+        show: true,
+        message: errorMessage,
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -65,8 +74,12 @@ const Chat: React.FC = () => {
       try {
         const response = await chat.getUserDetails(userId);
         setRecipientDetails(response);
-      } catch (error) {
-        console.error('Error fetching recipient details:', error);
+      } catch (error: any) {
+        setError({
+          show: true,
+          message: 'Failed to load recipient details',
+          severity: 'warning'
+        });
       }
     };
     fetchRecipientDetails();
@@ -81,7 +94,11 @@ const Chat: React.FC = () => {
       setNewMessage('');
       scrollToBottom();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to send message');
+      setError({
+        show: true,
+        message: error.response?.data?.message || 'Failed to send message',
+        severity: 'error'
+      });
     }
   };
 
@@ -128,6 +145,14 @@ const Chat: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
+      <ErrorModal
+        isOpen={error.show}
+        message={error.message}
+        severity={error.severity}
+        onClose={() => setError({ show: false, message: '' })}
+        returnPath="/conversations"
+      />
+
       {/* Navigation Bar */}
       <div className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

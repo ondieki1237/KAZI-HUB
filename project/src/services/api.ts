@@ -23,6 +23,13 @@ interface ProfileData {
   updatedAt: string;
 }
 
+// Add ErrorModal state management
+let showErrorModal: ((message: string, severity: 'error' | 'warning' | 'info') => void) | null = null;
+
+export const setErrorModalHandler = (handler: typeof showErrorModal) => {
+  showErrorModal = handler;
+};
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: '/api',  // This will use the Vite proxy
@@ -67,12 +74,19 @@ api.interceptors.response.use(
     if (error.code === 'ERR_NETWORK') {
       console.error('Network error - please check if the backend server is running');
       toast.error('Network error - please check server connection');
+      showErrorModal?.('Unable to connect to the server. Please check your internet connection and try again.', 'error');
     } else if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      showErrorModal?.('Your session has expired. Please log in again.', 'warning');
       window.location.href = '/login';
+    } else if (error.response?.status === 403) {
+      showErrorModal?.('You do not have permission to perform this action.', 'error');
     } else if (error.response?.status === 404) {
       toast.error('Resource not found');
+    } else if (error.response?.status === 400 && error.response?.data?.message) {
+      // Show validation errors in modal for better visibility
+      showErrorModal?.(error.response.data.message, 'warning');
     } else {
       toast.error(error.response?.data?.message || error.message || 'An error occurred');
     }
