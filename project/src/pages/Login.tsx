@@ -22,13 +22,18 @@ function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { user, token } = await auth.login(formData.email, formData.password);
+      const { user, token, isAdmin } = await auth.login(formData.email, formData.password);
       setUser(user);
       setIsAuthenticated(true);
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       toast.success('Login successful!');
-      navigate('/home');
+      
+      if (isAdmin) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/home');
+      }
     } catch (error) {
       toast.error('Login failed');
     }

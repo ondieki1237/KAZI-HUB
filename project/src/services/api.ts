@@ -177,6 +177,7 @@ export const auth = {
         throw new Error('Invalid response from server');
       }
 
+      // Store user data in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({
         ...user,
@@ -186,10 +187,18 @@ export const auth = {
 
       console.log('Auth successful:', {
         userId: user._id,
+        role: user.role,
         tokenPreview: token.substring(0, 20) + '...',
       });
 
-      return { token, user };
+      // Check if user is admin
+      const isAdmin = email === 'admin@gmail.com' && password === 'adminkazihub';
+      if (isAdmin) {
+        window.location.href = '/admin/dashboard';
+        return { token, user, isAdmin: true };
+      }
+
+      return { token, user, isAdmin: false };
     } catch (error: any) {
       if (error.response?.data?.requiresVerification) {
         throw new Error('EMAIL_NOT_VERIFIED');
