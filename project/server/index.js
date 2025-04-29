@@ -31,12 +31,30 @@ const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '192.168.1.157';
 const CLIENT_PORT = 5173;
 
-// CORS configuration
+// CORS configuration - Allow all devices on the same network
 app.use(cors({
-  origin: [
-    `http://localhost:${CLIENT_PORT}`,
-    `http://${HOST}:${CLIENT_PORT}`
-  ],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., Android WebView, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Allow Vite frontend (development)
+    if (origin === `http://localhost:${CLIENT_PORT}` || 
+        origin === `http://${HOST}:${CLIENT_PORT}`) {
+      return callback(null, true);
+    }
+    
+    // Allow Android WebView
+    if (origin === 'http://localhost') {
+      return callback(null, true);
+    }
+    
+    // Allow any device on the same network (192.168.1.x)
+    if (origin.match(/^http:\/\/192\.168\.1\.\d{1,3}(:\d+)?$/)) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -162,3 +180,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 On Your Network:  http://${HOST}:${PORT}`);
   console.log(`🌐 API URL:          ${process.env.API_URL}`);
 });
+
+// Note: For production, replace the dynamic CORS origin check with specific origins
+// to enhance security (e.g., only allow known frontend URLs and WebView origins).

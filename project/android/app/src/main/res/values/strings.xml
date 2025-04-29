@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">kazihub</string>
+    <string name="title_activity_main">kazihub</string>
+    <string name="package_name">com.kazihub.app</string>
+    <string name="custom_url_scheme">com.kazihub.app</string>
+</resources>
