@@ -168,7 +168,7 @@ const Conversations: React.FC = () => {
   useEffect(() => {
     if (!currentUser?._id) return
 
-    const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.110:5000'
+    const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000'
     socketRef.current = io(SOCKET_URL, {
       auth: {
         token: localStorage.getItem('token')

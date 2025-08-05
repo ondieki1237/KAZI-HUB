@@ -90,7 +90,7 @@ const Notifications: React.FC = () => {
 
     fetchNotifications();
 
-    const socketUrl = process.env.REACT_APP_API_URL || 'http://192.168.1.110:5000';
+    const socketUrl = process.env.REACT_APP_API_URL || 'http://192.168.1.246:5000';
     console.log('Connecting to socket at:', socketUrl);
     const newSocket = io(socketUrl, {
       reconnection: true,

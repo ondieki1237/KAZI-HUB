@@ -28,7 +28,7 @@ const io = initializeSocket(server);
 
 // Environment variables
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '192.168.1.110';
+const HOST = process.env.HOST || '192.168.1.246';
 const CLIENT_PORT = 5173;
 
 // CORS configuration

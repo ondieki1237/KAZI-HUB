@@ -55,7 +55,7 @@ function Home() {
         return;
       }
 
-      const newSocket = io('http://192.168.1.110:5000');
+      const newSocket = io('http://192.168.1.246:5000');
       setSocket(newSocket);
       fetchUnreadMessages();
       return () => {

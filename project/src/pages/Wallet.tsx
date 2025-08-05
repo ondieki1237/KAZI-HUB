@@ -30,7 +30,7 @@ function Wallet() {
   const fetchWalletData = async () => {
     try {
       const token = localStorage.getItem('token'); // Adjust based on your auth setup
-      const response = await axios.get('http://192.168.1.110:5000/api/payments/wallet', {
+      const response = await axios.get('http://192.168.1.246:5000/api/payments/wallet', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setBalance(response.data.balance);
@@ -64,7 +64,7 @@ function Wallet() {
           : '+254' + phoneNumber;
 
       const response = await axios.post(
-        'http://192.168.1.110:5000/api/payments/deposit',
+        'http://192.168.1.246:5000/api/payments/deposit',
         { 
           phoneNumber: formattedPhone,
           amount: Number(amount)
@@ -84,7 +84,7 @@ function Wallet() {
       const checkPaymentStatus = async (paymentId: string) => {
         try {
           const statusResponse = await axios.get(
-            `http://192.168.1.110:5000/api/payments/${paymentId}`,
+            `http://192.168.1.246:5000/api/payments/${paymentId}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
@@ -131,7 +131,7 @@ function Wallet() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://192.168.1.110:5000/api/payments/withdraw',
+        'http://192.168.1.246:5000/api/payments/withdraw',
         { phoneNumber: `254${phoneNumber.replace(/^0/, '')}`, amount: Number(amount) },
         { headers: { Authorization: `Bearer ${token}` } }
       );

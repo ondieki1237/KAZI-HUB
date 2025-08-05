@@ -17,7 +17,7 @@ export const initializeSocket = (server) => {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
         ? 'https://your-production-domain.com' 
-        : ['http://localhost:5173', 'http://192.168.1.110:5173'],
+        : ['http://localhost:5173', 'http://192.168.1.246:5173'],
       methods: ['GET', 'POST'],
       credentials: true
     },

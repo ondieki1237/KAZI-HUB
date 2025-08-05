@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '');
   
-  const HOST = env.HOST || '192.168.1.110';
+  const HOST = env.HOST || '192.168.1.246';
   const PORT = env.PORT || '5000';
   const CLIENT_PORT = 5173;
 
