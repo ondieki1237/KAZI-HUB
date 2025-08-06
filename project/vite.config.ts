@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: CLIENT_PORT,
       host: true,
+      allowedHosts: ['kazi-hub-1.onrender.com'],  // <-- Add this line
     },
     build: {
       outDir: 'dist',
