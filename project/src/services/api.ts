@@ -88,8 +88,7 @@ api.interceptors.response.use(
       window.location.href = '/login';
     } else if (error.response?.status === 403) {
       showErrorModal?.('You do not have permission to perform this action.', 'error');
-    } else if (error.response?.status === 404) {
-      toast.error('Resource not found');
+
     } else if (error.response?.status === 400 && error.response?.data?.message) {
       // Show validation errors in modal for better visibility
       showErrorModal?.(error.response.data.message, 'warning');
@@ -765,6 +764,10 @@ export const notifications = {
       throw error;
     }
   },
+
+
+
+
   deleteNotification: async (notificationId: string) => {
     try {
       if (!notificationId) throw new Error('Notification ID is required');
