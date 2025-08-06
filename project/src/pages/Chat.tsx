@@ -30,7 +30,6 @@ const Chat: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [recipientDetails, setRecipientDetails] = useState<{ name: string; email: string } | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<{ show: boolean; message: string; severity?: 'error' | 'warning' | 'info' }>({
     show: false,
@@ -45,7 +44,6 @@ const Chat: React.FC = () => {
     if (!jobId || !userId || !user) return;
     try {
       if (!silent) setLoading(true);
-      if (silent) setIsRefreshing(true);
       const response = await chat.getMessages(jobId, userId);
       setMessages(response);
       if (!silent) scrollToBottom();
@@ -58,7 +56,6 @@ const Chat: React.FC = () => {
       });
     } finally {
       setLoading(false);
-      setIsRefreshing(false);
     }
   }, [jobId, userId, user]);
 
@@ -108,8 +105,8 @@ const Chat: React.FC = () => {
       new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     return (
-      <div className="flex justify-end mb-2">
-        <div className="relative max-w-[75%] bg-teal-500 text-white rounded-lg px-3 py-2 shadow-md">
+      <div className="flex justify-end mb-3">
+        <div className="relative max-w-[80%] sm:max-w-[70%] bg-teal-500 text-white rounded-lg px-3 py-2 shadow-md">
           <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
           <div className="flex items-center justify-end mt-1 text-xs text-white opacity-80">
             <span>{formatTime(message.createdAt)}</span>
@@ -121,7 +118,7 @@ const Chat: React.FC = () => {
               )}
             </span>
           </div>
-          <div className="absolute -bottom-1 right-0 w-0 h-0 border-t-[6px] border-t-teal-500 border-l-[6px] border-l-transparent" />
+          <div className="absolute -bottom-1 right-2 w-0 h-0 border-t-[6px] border-t-teal-500 border-l-[6px] border-l-transparent" />
         </div>
       </div>
     );
@@ -133,63 +130,72 @@ const Chat: React.FC = () => {
       new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     return (
-      <div className="flex justify-start mb-2">
-        <div className="relative max-w-[75%] bg-white text-gray-900 rounded-lg px-3 py-2 shadow-md">
+      <div className="flex justify-start mb-3">
+        <div className="relative max-w-[80%] sm:max-w-[70%] bg-white text-gray-900 rounded-lg px-3 py-2 shadow-md">
           <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
           <div className="text-xs text-gray-500 mt-1">{formatTime(message.createdAt)}</div>
-          <div className="absolute -bottom-1 left-0 w-0 h-0 border-t-[6px] border-t-white border-r-[6px] border-r-transparent" />
+          <div className="absolute -bottom-1 left-2 w-0 h-0 border-t-[6px] border-t-white border-r-[6px] border-r-transparent" />
         </div>
       </div>
     );
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="flex flex-col min-h-screen bg-gray-100">
       <ErrorModal
         isOpen={error.show}
         message={error.message}
         severity={error.severity}
-        onClose={() => setError({ show: false, message: '' })}
-        returnPath="/conversations"
+        onClose={() => {
+          setError({ show: false, message: '' });
+          navigate(-1); // Navigate back to the previous page
+        }}
       />
 
       {/* Navigation Bar */}
       <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <button onClick={() => navigate('/conversations')} className="p-2 rounded-full hover:bg-gray-100">
-                <ArrowLeft className="h-5 w-5" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+          <div className="flex flex-wrap justify-between items-center py-3 sm:py-4">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <button
+                onClick={() => navigate('/conversations')}
+                className="p-2 rounded-full hover:bg-gray-100"
+                aria-label="Back to conversations"
+              >
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
-              <Link to="/" className="p-2 rounded-full hover:bg-gray-100">
-                <Home className="h-5 w-5" />
+              <Link to="/" className="p-2 rounded-full hover:bg-gray-100" aria-label="Home">
+                <Home className="h-4 w-4 sm:h-5 sm:w-5" />
               </Link>
             </div>
             {recipientDetails && (
-              <div className="text-center">
-                <h2 className="text-lg font-semibold text-gray-900">{recipientDetails.name}</h2>
-                <p className="text-sm text-gray-500">{recipientDetails.email}</p>
+              <div className="text-center flex-1 min-w-0 px-2 sm:px-4">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                  {recipientDetails.name}
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-500 truncate">{recipientDetails.email}</p>
               </div>
             )}
             <button
               onClick={() => navigate('/conversations')}
               className="p-2 rounded-full hover:bg-gray-100 flex items-center"
+              aria-label="All chats"
             >
-              <MessageSquare className="h-5 w-5 mr-1" />
-              <span className="hidden md:inline text-sm">All Chats</span>
+              <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+              <span className="hidden sm:inline text-xs sm:text-sm">All Chats</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-3 bg-gray-100">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-100 min-h-0">
         {loading ? (
           <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
+            <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-teal-500" />
           </div>
         ) : (
-          <div>
+          <div className="space-y-2">
             {messages.map((message) => {
               const isSentByMe = String(message.senderId._id) === String(user?.id || user?._id);
               return isSentByMe ? (
@@ -204,32 +210,24 @@ const Chat: React.FC = () => {
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="bg-gray-100 border-t p-3 flex items-center">
+      <form onSubmit={handleSendMessage} className="bg-gray-100 border-t p-2 sm:p-3 flex items-center">
         <div className="flex w-full max-w-4xl mx-auto gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 px-4 py-2 bg-white border rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-white border rounded-full text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <button
             type="submit"
             disabled={!newMessage.trim()}
-            className="px-4 py-2 bg-teal-500 text-white rounded-full hover:bg-teal-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="px-3 py-2 sm:px-4 sm:py-2 bg-teal-500 text-white rounded-full text-sm sm:text-base hover:bg-teal-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             Send
           </button>
         </div>
       </form>
-
-      {/* Refresh Indicator */}
-      {isRefreshing && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-teal-600 text-white px-3 py-1 rounded-full text-sm shadow-lg flex items-center">
-          <div className="animate-spin rounded-full h-3 w-3 border-2 border-white mr-2"></div>
-          Updating...
-        </div>
-      )}
     </div>
   );
 };

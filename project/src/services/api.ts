@@ -1,6 +1,5 @@
 import axios from 'axios';
 import type { Job, JobApplication } from '../types';
-import { toast } from 'react-hot-toast';
 
 // Determine base URL based on environment
 const isProduction = import.meta.env.MODE === 'production';
@@ -79,7 +78,6 @@ api.interceptors.response.use(
 
     if (error.code === 'ERR_NETWORK') {
       console.error('Network error - please check if the backend server is running');
-      toast.error('Network error - please check server connection');
       showErrorModal?.('Unable to connect to the server. Please check your internet connection and try again.', 'error');
     } else if (error.response?.status === 401) {
       localStorage.removeItem('token');
@@ -88,12 +86,10 @@ api.interceptors.response.use(
       window.location.href = '/login';
     } else if (error.response?.status === 403) {
       showErrorModal?.('You do not have permission to perform this action.', 'error');
-
     } else if (error.response?.status === 400 && error.response?.data?.message) {
-      // Show validation errors in modal for better visibility
       showErrorModal?.(error.response.data.message, 'warning');
     } else {
-      toast.error(error.response?.data?.message || error.message || 'An error occurred');
+      showErrorModal?.(error.response?.data?.message || error.message || 'An error occurred', 'error');
     }
     return Promise.reject(error);
   }
@@ -657,14 +653,21 @@ export const chat = {
       return [];
     }
     
-    if (!/^[0-9a-fA-F]{24}$/.test(user._id)) {
-      console.error('Invalid user ID format:', user._id);
+    // More flexible ID validation - allow both ObjectId format and other formats
+    const userId = user._id || user.id;
+    if (!userId) {
+      console.error('No valid user ID found');
       return [];
     }
 
-    console.log('Fetching conversations for user:', user._id);
-    const response = await api.get(`/chats/conversations/${user._id}`);
-    return response.data;
+    console.log('Fetching conversations for user:', userId);
+    try {
+      const response = await api.get(`/chats/conversations/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      return [];
+    }
   },
 };
 

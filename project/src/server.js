@@ -56,6 +56,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong 2!' });
 });
 
+app.get('/', (req, res) => {
+  res.send('API is running...');
+});
+
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/kazi-hub')
   .then(() => console.log('Connected to MongoDB'))
