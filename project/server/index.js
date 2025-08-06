@@ -28,15 +28,24 @@ const io = initializeSocket(server);
 
 // Environment variables
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '192.168.1.246';
+const HOST = process.env.HOST || 'localhost';
 const CLIENT_PORT = 5173;
 
-// CORS configuration
+// CORS Configuration
+const allowedOrigins = [
+  `http://localhost:${CLIENT_PORT}`,
+  `http://${HOST}:${CLIENT_PORT}`,
+  'https://your-frontend-domain.com', // <-- Replace with your actual frontend domain
+];
+
 app.use(cors({
-  origin: [
-    `http://localhost:${CLIENT_PORT}`,
-    `http://${HOST}:${CLIENT_PORT}`
-  ],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed for this origin'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -89,7 +98,6 @@ mongoose.connect(process.env.MONGO_URL, {
   });
 });
 
-// Add MongoDB connection error handling
 mongoose.connection.on('error', (err) => {
   console.error('MongoDB error:', {
     message: err.message,

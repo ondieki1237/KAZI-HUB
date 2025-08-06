@@ -13,11 +13,19 @@ let io; // Declare io variable at the top level
 
 // Initialize Socket.IO
 export const initializeSocket = (server) => {
+  const allowedOrigins = process.env.NODE_ENV === 'production' 
+    ? ['https://your-frontend-domain.com'] // <-- Replace with your actual frontend domain
+    : ['http://localhost:5173', 'http://192.168.1.246:5173'];
+
   io = new Server(server, {
     cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? 'https://your-production-domain.com' 
-        : ['http://localhost:5173', 'http://192.168.1.246:5173'],
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS not allowed for this origin'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true
     },
@@ -25,11 +33,11 @@ export const initializeSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('🔗 User connected:', socket.id);
 
     socket.on('join_room', (jobId) => {
       socket.join(jobId);
-      console.log(`User ${socket.id} joined room ${jobId}`);
+      console.log(`👥 User ${socket.id} joined room ${jobId}`);
     });
 
     socket.on('send_message', async (data) => {
@@ -41,7 +49,7 @@ export const initializeSocket = (server) => {
     });
 
     socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
+      console.log('❌ User disconnected:', socket.id);
     });
   });
 

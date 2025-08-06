@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { format } from 'date-fns';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { useAuth } from '../contexts/AuthContext'; // Assuming this provides user data
+import { useAuth } from '../contexts/AuthContext';
+import { io, Socket } from 'socket.io-client';
 
 interface Transaction {
   _id: string;
@@ -15,32 +16,109 @@ interface Transaction {
 }
 
 function Wallet() {
-  const { user } = useAuth(); // Get authenticated user
+  const { user } = useAuth();
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [action, setAction] = useState<'deposit' | 'withdraw' | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
+  // Initialize Socket.IO connection
   useEffect(() => {
-    fetchWalletData();
-  }, []);
+    if (!user?._id) return;
+
+    const isProduction = import.meta.env.MODE === 'production';
+    const SOCKET_URL = isProduction 
+      ? 'https://kazi-hub.onrender.com'
+      : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+
+    socketRef.current = io(SOCKET_URL, {
+      auth: {
+        token: localStorage.getItem('token')
+      },
+      path: '/socket.io',
+      transports: ['websocket'],
+      withCredentials: true,
+    });
+
+    console.log('🟢 Connected to Socket:', SOCKET_URL);
+
+    socketRef.current.on('connect', () => {
+      console.log('Socket connected');
+      socketRef.current?.emit('join', user._id);
+    });
+
+    socketRef.current.on('transaction_update', (transaction: Transaction) => {
+      console.log('Received transaction update:', transaction);
+      if (transaction.userId === user._id) {
+        setTransactions(prev => [transaction, ...prev.filter(t => t._id !== transaction._id)]);
+        setBalance(prev => 
+          transaction.status === 'completed'
+            ? transaction.type === 'deposit'
+              ? prev + transaction.amount
+              : prev - transaction.amount
+            : prev
+        );
+        if (transaction.status === 'completed') {
+          toast.success(`${transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'} completed successfully!`);
+        } else if (transaction.status === 'failed') {
+          toast.error(`Failed to process ${transaction.type}: ${transaction.description || 'Unknown error'}`);
+        }
+      }
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      toast.error('Failed to connect to real-time wallet updates');
+    });
+
+    socketRef.current.on('disconnect', () => {
+      console.warn('🔌 Socket disconnected');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        console.log('🛑 Socket disconnected on component unmount');
+      }
+    };
+  }, [user?._id]);
 
   const fetchWalletData = async () => {
     try {
-      const token = localStorage.getItem('token'); // Adjust based on your auth setup
-      const response = await axios.get('http://192.168.1.246:5000/api/payments/wallet', {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const isProduction = import.meta.env.MODE === 'production';
+      const API_URL = isProduction 
+        ? 'https://kazi-hub.onrender.com'
+        : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
+
+      const response = await axios.get(`${API_URL}/api/payments/wallet`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setBalance(response.data.balance);
       setTransactions(response.data.transactions);
     } catch (error) {
+      console.error('Error fetching wallet data:', error);
       toast.error('Failed to fetch wallet data');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchWalletData();
+  }, []);
 
   const handleDeposit = async () => {
     if (!phoneNumber || !amount) {
@@ -51,10 +129,14 @@ function Wallet() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
       if (!token) {
         throw new Error('No authentication token found');
       }
+
+      const isProduction = import.meta.env.MODE === 'production';
+      const API_URL = isProduction 
+        ? 'https://kazi-hub.onrender.com'
+        : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
 
       // Format phone number
       const formattedPhone = phoneNumber.startsWith('+254') 
@@ -64,7 +146,7 @@ function Wallet() {
           : '+254' + phoneNumber;
 
       const response = await axios.post(
-        'http://192.168.1.246:5000/api/payments/deposit',
+        `${API_URL}/api/payments/deposit`,
         { 
           phoneNumber: formattedPhone,
           amount: Number(amount)
@@ -84,7 +166,7 @@ function Wallet() {
       const checkPaymentStatus = async (paymentId: string) => {
         try {
           const statusResponse = await axios.get(
-            `http://192.168.1.246:5000/api/payments/${paymentId}`,
+            `${API_URL}/api/payments/${paymentId}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
@@ -129,17 +211,30 @@ function Wallet() {
       return;
     }
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const isProduction = import.meta.env.MODE === 'production';
+      const API_URL = isProduction 
+        ? 'https://kazi-hub.onrender.com'
+        : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
+
       const response = await axios.post(
-        'http://192.168.1.246:5000/api/payments/withdraw',
+        `${API_URL}/api/payments/withdraw`,
         { phoneNumber: `254${phoneNumber.replace(/^0/, '')}`, amount: Number(amount) },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
       );
       toast.success('Withdrawal request sent. Processing...');
       setAction(null);
-      setTimeout(fetchWalletData, 10000); // Refresh after 10s
-    } catch (error) {
-      toast.error('Failed to initiate withdrawal');
+      // Note: No need for setTimeout(fetchWalletData) as socket will update in real-time
+    } catch (error: any) {
+      console.error('Withdrawal error:', error);
+      toast.error(error.response?.data?.message || 'Failed to initiate withdrawal');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -5,10 +5,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '');
-  
-  const HOST = env.HOST || '192.168.1.246';
+
+  const HOST = env.HOST || 'localhost';
   const PORT = env.PORT || '5000';
   const CLIENT_PORT = 5173;
+
+  const isProduction = mode === 'production';
 
   return {
     plugins: [react()],
@@ -20,16 +22,16 @@ export default defineConfig(({ mode }) => {
       host: true,
       proxy: {
         '/api': {
-          target: `http://${HOST}:${PORT}`,
+          target: isProduction ? 'https://kazi-hub.onrender.com' : `http://${HOST}:${PORT}`,
           changeOrigin: true,
           secure: false,
         },
         '/socket.io': {
-          target: `ws://${HOST}:${PORT}`,
+          target: isProduction ? 'wss://kazi-hub.onrender.com' : `ws://${HOST}:${PORT}`,
           ws: true,
           changeOrigin: true,
           secure: false,
-        }
+        },
       },
     },
     preview: {
@@ -37,7 +39,10 @@ export default defineConfig(({ mode }) => {
       host: true,
     },
     define: {
-      'process.env.VITE_API_URL': JSON.stringify(`http://${HOST}:${PORT}/api`),
+      'process.env.VITE_API_URL': JSON.stringify(isProduction 
+        ? 'https://kazi-hub.onrender.com/api' 
+        : `http://${HOST}:${PORT}/api`
+      ),
     },
   };
 });

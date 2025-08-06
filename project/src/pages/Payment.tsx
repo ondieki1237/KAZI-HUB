@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { jobs } from '../services/api';
@@ -6,6 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Home } from 'lucide-react';
 import Footer from '../components/Footer';
+import { io, Socket } from 'socket.io-client';
 import './Payment.css';
 
 interface JobDetails {
@@ -18,6 +19,17 @@ interface JobDetails {
     name?: string;
     phone?: string;
   };
+}
+
+interface PaymentNotification {
+  _id: string;
+  paymentId: string;
+  jobId: string;
+  status: 'initiated' | 'completed' | 'failed';
+  amount: number;
+  userId: string;
+  message: string;
+  createdAt: string;
 }
 
 // Add these styles at the top of your file, after the imports
@@ -46,6 +58,7 @@ const Payment: React.FC = () => {
   const { jobId, workerId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const socketRef = useRef<Socket | null>(null);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -62,6 +75,67 @@ const Payment: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // Initialize Socket.IO connection
+  useEffect(() => {
+    if (!user?._id || !jobId) return;
+
+    const isProduction = import.meta.env.MODE === 'production';
+    const SOCKET_URL = isProduction 
+      ? 'https://kazi-hub.onrender.com'  // Your Render Backend URL
+      : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();  // Disconnect previous socket if exists
+    }
+
+    socketRef.current = io(SOCKET_URL, {
+      auth: {
+        token: localStorage.getItem('token')
+      },
+      path: '/socket.io',  // Make sure this matches your backend Socket.IO path
+      transports: ['websocket'], // Force WebSocket (optional, helps avoid polling issues)
+      withCredentials: true,
+    });
+
+    console.log('🟢 Connected to Socket:', SOCKET_URL);
+
+    socketRef.current.on('connect', () => {
+      console.log('Socket connected');
+      socketRef.current?.emit('join', user._id);
+    });
+
+    socketRef.current.on('payment_update', (notification: PaymentNotification) => {
+      console.log('Received payment update:', notification);
+      if (notification.userId === user._id && notification.jobId === jobId) {
+        if (notification.status === 'completed') {
+          toast.success('Payment completed successfully!');
+          navigate(`/jobs/${jobId}`);
+        } else if (notification.status === 'failed') {
+          toast.error(notification.message || 'Payment failed');
+        } else {
+          toast.success('Payment initiated. Please complete on your phone.');
+        }
+      }
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      toast.error('Failed to connect to real-time payment updates');
+    });
+
+    socketRef.current.on('disconnect', () => {
+      console.warn('🔌 Socket disconnected');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        console.log('🛑 Socket disconnected on component unmount');
+      }
+    };
+  }, [user?._id, jobId, navigate]);
+
   // Fetch job details
   useEffect(() => {
     const fetchData = async () => {
@@ -76,7 +150,7 @@ const Payment: React.FC = () => {
         
         // Fetch employer's phone number
         const employerResponse = await axios.get(
-          `http://192.168.1.246:5000/api/users/${jobResponse.employerId._id}`,
+          `${isProduction ? 'https://kazi-hub.onrender.com' : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000')}/api/users/${jobResponse.employerId._id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -130,6 +204,10 @@ const Payment: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      const isProduction = import.meta.env.MODE === 'production';
+      const API_URL = isProduction 
+        ? 'https://kazi-hub.onrender.com' 
+        : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
 
       if (!token) {
         throw new Error('No authentication token found');
@@ -137,7 +215,7 @@ const Payment: React.FC = () => {
 
       // First create payment record
       const paymentRecord = await axios.post(
-        'http://192.168.1.246:5000/api/payments',
+        `${API_URL}/api/payments`,
         {
           jobId,
           workerId,
@@ -162,7 +240,7 @@ const Payment: React.FC = () => {
 
       // Then initiate M-Pesa payment
       const mpesaResponse = await axios.post(
-        'http://192.168.1.246:5000/api/mpesa/send-payment',
+        `${API_URL}/api/mpesa/send-payment`,
         {
           phoneNumber: formattedPhone,
           amount: jobDetails!.budget,
@@ -178,7 +256,7 @@ const Payment: React.FC = () => {
 
       if (mpesaResponse.data.ResponseCode === '0') {
         toast.success('Payment initiated successfully! Please complete the payment on your phone.');
-        navigate(`/jobs/${jobId}`);
+        // Note: Navigation is handled by the socket 'payment_update' event for 'completed' status
       } else {
         toast.error('Payment failed to initiate');
       }

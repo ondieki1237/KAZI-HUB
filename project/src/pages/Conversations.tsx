@@ -114,9 +114,9 @@ const Conversations: React.FC = () => {
 
   useEffect(() => {
     if (currentUser?._id) {
-    fetchConversations()
-    const interval = setInterval(() => fetchConversations(true), 10000)
-    return () => clearInterval(interval)
+      fetchConversations()
+      const interval = setInterval(() => fetchConversations(true), 10000)
+      return () => clearInterval(interval)
     }
   }, [fetchConversations, currentUser])
 
@@ -166,20 +166,33 @@ const Conversations: React.FC = () => {
 
   // Initialize Socket.IO connection
   useEffect(() => {
-    if (!currentUser?._id) return
+    if (!currentUser?._id) return;
 
-    const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000'
+    const isProduction = import.meta.env.MODE === 'production';
+    const SOCKET_URL = isProduction 
+      ? 'https://kazi-hub.onrender.com'  // Your Render Backend URL
+      : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();  // Disconnect previous socket if exists
+    }
+
     socketRef.current = io(SOCKET_URL, {
       auth: {
         token: localStorage.getItem('token')
-      }
-    })
+      },
+      path: '/socket.io',  // Make sure this matches your backend Socket.IO path
+      transports: ['websocket'], // Force WebSocket (optional, helps avoid polling issues)
+      withCredentials: true,
+    });
+
+    console.log('🟢 Connected to Socket:', SOCKET_URL);
 
     socketRef.current.on('new_message', (message: Message) => {
       // Update messages if in current chat
       if (selectedChat?.jobId._id === message.jobId) {
-        setMessages(prev => [...prev, message])
-        scrollToBottom()
+        setMessages(prev => [...prev, message]);
+        scrollToBottom();
       }
 
       // Update conversations list
@@ -193,17 +206,27 @@ const Conversations: React.FC = () => {
               senderId: message.senderId,
               read: message.read
             },
-            unreadCount: message.recipientId === currentUser._id ? conv.unreadCount + 1 : conv.unreadCount
-          }
+            unreadCount: message.recipientId === currentUser._id 
+              ? conv.unreadCount + 1 
+              : conv.unreadCount
+          };
         }
-        return conv
-      }))
-    })
+        return conv;
+      }));
+    });
 
+    socketRef.current.on('disconnect', () => {
+      console.warn('🔌 Socket disconnected');
+    });
+
+    // Cleanup on unmount
     return () => {
-      socketRef.current?.disconnect()
-    }
-  }, [currentUser, selectedChat])
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        console.log('🛑 Socket disconnected on component unmount');
+      }
+    };
+  }, [currentUser?._id, selectedChat?._id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -2,8 +2,11 @@ import express from 'express';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 router.post('/generate', async (req, res) => {
   try {
@@ -16,6 +19,9 @@ router.post('/generate', async (req, res) => {
     const fileName = `${Date.now()}_${data.fullName.replace(/\s+/g, '_')}_CV.pdf`;
     const filePath = path.join(__dirname, '../public/cvs', fileName);
     
+    // Ensure directory exists
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
     // Pipe the PDF to a write stream
     doc.pipe(fs.createWriteStream(filePath));
 
@@ -58,9 +64,13 @@ router.post('/generate', async (req, res) => {
     // Finalize the PDF
     doc.end();
 
-    // Send the file URL back to the client
-    const fileUrl = `http://192.168.1.246:5000/cvs/${fileName}`;
-    
+    // Build File URL (Dynamic)
+    const baseUrl = process.env.NODE_ENV === 'production'
+      ? 'https://kazi-hub.onrender.com'  // <-- Update to your backend URL
+      : `http://localhost:${process.env.PORT || 5000}`;
+
+    const fileUrl = `${baseUrl}/cvs/${fileName}`;
+
     res.json({
       success: true,
       fileUrl,
@@ -76,4 +86,4 @@ router.post('/generate', async (req, res) => {
   }
 });
 
-export default router; 
+export default router;

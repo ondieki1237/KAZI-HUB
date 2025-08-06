@@ -2,6 +2,12 @@ import axios from 'axios';
 import type { Job, JobApplication } from '../types';
 import { toast } from 'react-hot-toast';
 
+// Determine base URL based on environment
+const isProduction = import.meta.env.MODE === 'production';
+const API_BASE_URL = isProduction 
+  ? 'https://kazi-hub.onrender.com/api'  // Production backend URL
+  : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000/api'); // Development URL
+
 interface ProfileData {
   _id: string;
   username: string;
@@ -17,7 +23,7 @@ interface ProfileData {
     rating?: number;
     completedJobs?: number;
     yearsOfExperience?: number;
-    addressString?: string; // Added explicitly for clarity
+    addressString?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -30,9 +36,9 @@ export const setErrorModalHandler = (handler: typeof showErrorModal) => {
   showErrorModal = handler;
 };
 
-// Create axios instance with default config
+// Create axios instance with dynamic base URL
 const api = axios.create({
-  baseURL: '/api',  // This will use the Vite proxy
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -464,7 +470,7 @@ export const profiles = {
           rating: response.data.profile.rating,
           completedJobs: response.data.profile.completedJobs || 0,
           yearsOfExperience: response.data.profile.yearsOfExperience,
-          addressString: response.data.profile.addressString, // Added
+          addressString: response.data.profile.addressString,
         };
       }
 
@@ -484,10 +490,10 @@ export const profiles = {
       const backendData = {
         name: profileData.username,
         phone: profileData.phoneNumber,
-        locationString: profileData.profile?.location, // Store original location string
+        locationString: profileData.profile?.location,
         location: profileData.profile?.location ? {
           type: 'Point',
-          coordinates: profileData.profile.location.split(',').map(coord => parseFloat(coord.trim())).reverse() // Reverse to [lng, lat]
+          coordinates: profileData.profile.location.split(',').map(coord => parseFloat(coord.trim())).reverse()
         } : undefined,
         bio: profileData.profile?.bio,
         skills: profileData.profile?.skills,

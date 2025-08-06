@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Search, Briefcase, Bell, MapPin, Clock, Flame, MessageSquare } from 'lucide-react';
 import Menu from '../components/Menu';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +7,7 @@ import { Job, Message, Notification } from '../types';
 import toast from 'react-hot-toast';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
-import io from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 
 function Home() {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [socket, setSocket] = useState<any>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Job[]>([]);
@@ -36,83 +36,95 @@ function Home() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     toast.success('Logged out successfully');
-      navigate('/login');
+    navigate('/login');
   };
 
+  // Initialize Socket.IO connection
   useEffect(() => {
-    if (user) {
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = storedUser._id || user._id;
-      
-      if (!userId) {
-        console.error('No valid user ID found');
-        return;
-      }
+    if (!user) return;
 
-      // Validate MongoDB ObjectId format
-      if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
-        console.error('Invalid user ID format:', userId);
-        return;
-      }
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = storedUser._id || user._id;
 
-      const newSocket = io('http://192.168.1.246:5000');
-      setSocket(newSocket);
-      fetchUnreadMessages();
-      return () => {
-        newSocket.close();
-      };
+    if (!userId) {
+      console.error('No valid user ID found');
+      return;
     }
+
+    // Validate MongoDB ObjectId format
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+      console.error('Invalid user ID format:', userId);
+      return;
+    }
+
+    const isProduction = import.meta.env.MODE === 'production';
+    const SOCKET_URL = isProduction 
+      ? 'https://kazi-hub.onrender.com'  // Your Render Backend URL
+      : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();  // Disconnect previous socket if exists
+    }
+
+    socketRef.current = io(SOCKET_URL, {
+      auth: {
+        token: localStorage.getItem('token')
+      },
+      path: '/socket.io',  // Make sure this matches your backend Socket.IO path
+      transports: ['websocket'], // Force WebSocket (optional, helps avoid polling issues)
+      withCredentials: true,
+    });
+
+    console.log('🟢 Connected to Socket:', SOCKET_URL);
+
+    socketRef.current.on('new_message', (message: Message) => {
+      if (message.recipientId._id === userId && !message.read) {
+        setNotifications(prev => [...prev, {
+          type: 'message',
+          _id: message._id,
+          jobId: message.jobId,
+          jobTitle: message.jobTitle,
+          content: message.content
+        }]);
+        new Audio('/notification.mp3').play().catch(console.error);
+        fetchUnreadMessageCount(); // Update unread message count
+      }
+    });
+
+    socketRef.current.on('application_status_updated', (data: { jobId: string; workerId: string; status: 'accepted' | 'rejected'; jobTitle: string }) => {
+      if (data.workerId === userId && data.status === 'accepted') {
+        setNotifications(prev => [...prev, {
+          type: 'jobAccepted',
+          _id: data.jobId,
+          jobId: data.jobId,
+          jobTitle: data.jobTitle,
+          message: `You've been accepted for ${data.jobTitle}!`
+        }]);
+        new Audio('/notification.mp3').play().catch(console.error);
+        toast.success(`You've been accepted for ${data.jobTitle}!`);
+      }
+    });
+
+    socketRef.current.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+      toast.error('Failed to connect to notification server');
+    });
+
+    socketRef.current.on('disconnect', () => {
+      console.warn('🔌 Socket disconnected');
+    });
+
+    // Fetch initial unread messages
+    fetchUnreadMessages();
+
+    // Cleanup on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        console.log('🛑 Socket disconnected on component unmount');
+      }
+    };
   }, [user]);
-
-  useEffect(() => {
-    if (socket && user) {
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = storedUser._id || user._id;
-      
-      if (!userId) {
-        console.error('No valid user ID found');
-        return;
-      }
-
-      // Validate MongoDB ObjectId format
-      if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
-        console.error('Invalid user ID format:', userId);
-        return;
-      }
-
-      socket.on('new_message', (message: Message) => {
-        if (message.recipientId._id === userId && !message.read) {
-          setNotifications(prev => [...prev, {
-            type: 'message',
-            _id: message._id,
-            jobId: message.jobId,
-            jobTitle: message.jobTitle,
-            content: message.content
-          }]);
-          new Audio('/notification.mp3').play().catch(console.error);
-        }
-      });
-
-      socket.on('application_status_updated', (data: { jobId: string; workerId: string; status: 'accepted' | 'rejected' }) => {
-        if (data.workerId === userId && data.status === 'accepted') {
-          setNotifications(prev => [...prev, {
-            type: 'jobAccepted',
-            _id: data.jobId,
-            jobId: data.jobId,
-            jobTitle: data.jobTitle,
-            message: `You've been accepted for ${data.jobTitle}!`
-          }]);
-          new Audio('/notification.mp3').play().catch(console.error);
-          toast.success(`You've been accepted for ${data.jobTitle}!`);
-        }
-      });
-
-      return () => {
-        socket.off('new_message');
-        socket.off('application_status_updated');
-      };
-    }
-  }, [socket, user]);
 
   const fetchUnreadMessageCount = async () => {
     try {
@@ -164,8 +176,8 @@ function Home() {
   };
 
   const fetchJobsByCategory = async (category: string) => {
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
       if (category === 'All') {
         const response = await jobs.getAllJobs(1, 10);
         setFeaturedJobs(response.jobs);
@@ -178,13 +190,13 @@ function Home() {
         });
         setFeaturedJobs(filteredJobs);
       }
-      } catch (error) {
+    } catch (error) {
       console.error('Error fetching jobs:', error);
       toast.error('Failed to load jobs');
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchJobsByCategory(selectedCategory);
@@ -234,15 +246,6 @@ function Home() {
     handleSearch(query);
   };
 
-  useEffect(() => {
-    if (socket && user) {
-      socket.on('new_message', () => {
-        fetchUnreadMessageCount();
-      });
-    }
-    fetchUnreadMessageCount();
-  }, [socket, user]);
-
   return (
     <div id="main-content" className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 transition-all duration-300">
       {/* Header */}
@@ -268,7 +271,7 @@ function Home() {
               )}
             </div>
           </div>
-            <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-6">
             <button
               onClick={() => {
                 if (isAuthenticated) {
@@ -300,25 +303,25 @@ function Home() {
             <div className="px-[25px]">
               <Menu onLogout={handleLogout} />
             </div>
-                <div className="relative">
-                  <Bell
+            <div className="relative">
+              <Bell
                 className="h-5 w-5 cursor-pointer hover:text-teal-200 transition-colors"
-                    onClick={handleBellClick}
-                  />
-                  {notifications.length > 0 && (
+                onClick={handleBellClick}
+              />
+              {notifications.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                      {notifications.length}
-                    </span>
-                  )}
-                </div>
-            {!isAuthenticated && (
-                <button
-                  onClick={() => navigate('/login')}
-                className="bg-teal-600 text-white px-3 py-1 rounded-md font-medium hover:bg-teal-500 transition-colors text-sm"
-                >
-                  Login
-                </button>
+                  {notifications.length}
+                </span>
               )}
+            </div>
+            {!isAuthenticated && (
+              <button
+                onClick={() => navigate('/login')}
+                className="bg-teal-600 text-white px-3 py-1 rounded-md font-medium hover:bg-teal-500 transition-colors text-sm"
+              >
+                Login
+              </button>
+            )}
           </div>
         </div>
         {/* Updated Mobile View */}
@@ -335,13 +338,13 @@ function Home() {
               >
                 <Search className="h-6 w-6 cursor-pointer hover:text-teal-200 transition-colors" />
               </button>
-            <button
-              onClick={() => navigate('/cv-maker')}
+              <button
+                onClick={() => navigate('/cv-maker')}
                 className="flex items-center p-1 space-x-1"
-            >
+              >
                 <Flame className="h-6 w-6 text-orange-400 hover:text-orange-300 transition-colors" />
                 <span className="text-sm font-medium hover:text-teal-200">Make CV</span>
-            </button>
+              </button>
               <Bell
                 className="h-6 w-6 cursor-pointer hover:text-teal-200 transition-colors"
                 onClick={handleBellClick}
@@ -402,13 +405,13 @@ function Home() {
                           <MapPin className="h-5 w-5 mr-1 text-teal-600" />
                           <span>{job.locationArea}, {job.locationCity}</span>
                         </div>
-                </div>
+                      </div>
                       {job.status === 'open' && (
                         <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full font-semibold">
                           Open
                         </span>
-              )}
-            </div>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between mt-6">
                       <div className="flex items-center text-teal-700">
                         <span className="font-bold text-lg">Ksh {job.budget.toLocaleString()}</span>
@@ -420,7 +423,7 @@ function Home() {
                     </div>
                   </div>
                 ))}
-          </div>
+              </div>
             )}
           </section>
         )}

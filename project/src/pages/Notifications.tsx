@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Bell, MessageSquare, CheckCircle, XCircle, Briefcase, Trash2, BellOff } from 'lucide-react';
-import { notifications } from '../services/api'; // Specific import
+import { notifications } from '../services/api';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
 
-// Notification interfaces (unchanged from your version)
+// Notification interfaces (unchanged)
 interface BaseNotification {
   _id: string;
   userId: string;
@@ -50,7 +50,7 @@ const Notifications: React.FC = () => {
   const [notificationsList, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (!user?._id) {
@@ -90,23 +90,32 @@ const Notifications: React.FC = () => {
 
     fetchNotifications();
 
-    const socketUrl = process.env.REACT_APP_API_URL || 'http://192.168.1.246:5000';
-    console.log('Connecting to socket at:', socketUrl);
-    const newSocket = io(socketUrl, {
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      transports: ['websocket', 'polling'],
+    const isProduction = import.meta.env.MODE === 'production';
+    const SOCKET_URL = isProduction 
+      ? 'https://kazi-hub.onrender.com'  // Your Render Backend URL
+      : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000');
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();  // Disconnect previous socket if exists
+    }
+
+    socketRef.current = io(SOCKET_URL, {
+      auth: {
+        token: localStorage.getItem('token')
+      },
+      path: '/socket.io',  // Make sure this matches your backend Socket.IO path
+      transports: ['websocket'], // Force WebSocket (optional, helps avoid polling issues)
+      withCredentials: true,
     });
 
-    setSocket(newSocket);
+    console.log('🟢 Connected to Socket:', SOCKET_URL);
 
-    newSocket.on('connect', () => {
+    socketRef.current.on('connect', () => {
       console.log('Socket connected');
-      newSocket.emit('join', user._id);
+      socketRef.current?.emit('join', user._id);
     });
 
-    newSocket.on('new_notification', (notification: Notification) => {
+    socketRef.current.on('new_notification', (notification: Notification) => {
       console.log('Received new notification:', notification);
       if (notification.userId === user._id) {
         setNotifications(prev => [notification, ...prev]);
@@ -114,19 +123,21 @@ const Notifications: React.FC = () => {
       }
     });
 
-    newSocket.on('connect_error', (error) => {
+    socketRef.current.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
       toast.error('Failed to connect to real-time updates');
     });
 
-    newSocket.on('reconnect', (attempt) => {
-      console.log('Socket reconnected after attempt:', attempt);
-      toast.success('Reconnected to real-time updates');
+    socketRef.current.on('disconnect', () => {
+      console.warn('🔌 Socket disconnected');
     });
 
+    // Cleanup on unmount
     return () => {
-      newSocket.disconnect();
-      console.log('Socket disconnected');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        console.log('🛑 Socket disconnected on component unmount');
+      }
     };
   }, [user?._id]);
 
