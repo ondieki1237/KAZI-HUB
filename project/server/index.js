@@ -189,13 +189,13 @@ app.use('/cvs', express.static(path.join(__dirname, 'public/cvs')));
 app.use('/uploads', express.static('uploads'));
 
 // Error Handling Middleware
-app.use((err, req, res, next) => {
-  console.error('🚨 Error:', err.stack);
-  res.status(500).json({
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
-  });
-});
+// app.use((err, req, res, next) => {
+//   console.error('🚨 Error:', err.stack);
+//   res.status(500).json({
+//     message: 'Something went wrong!',
+//     error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+//   });
+// });
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
