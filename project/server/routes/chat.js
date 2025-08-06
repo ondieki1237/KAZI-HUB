@@ -222,11 +222,38 @@ router.post('/:jobId', verifyToken, async (req, res) => {
   }
 });
 
+// Test route to check if chat routes are working
+router.get('/test', (req, res) => {
+  res.json({ message: 'Chat routes are working' });
+});
+
 // Get all conversations for the current user
 router.get('/conversations', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log('Fetching conversations for user:', userId);
+    console.log('🔍 Fetching conversations for user:', userId);
+    console.log('🔍 Request headers:', req.headers);
+    console.log('🔍 Request URL:', req.url);
+    console.log('🔍 Request method:', req.method);
+
+    // Validate user ID format
+    if (!mongoose.isValidObjectId(userId)) {
+      console.log('❌ Invalid user ID format:', userId);
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    // First, let's check if there are any messages at all
+    const totalMessages = await Message.countDocuments();
+    console.log('🔍 Total messages in database:', totalMessages);
+
+    // Check if there are any messages for this user
+    const userMessages = await Message.countDocuments({
+      $or: [
+        { senderId: new ObjectId(userId) },
+        { recipientId: new ObjectId(userId) }
+      ]
+    });
+    console.log('🔍 Messages for user:', userMessages);
 
     // Find all messages where user is either sender or recipient
     const messages = await Message.aggregate([
@@ -266,10 +293,12 @@ router.get('/conversations', verifyToken, async (req, res) => {
       }
     ]);
 
-    console.log(`Found ${messages.length} conversations`);
+    console.log(`🔍 Found ${messages.length} conversations for user ${userId}`);
+    console.log('🔍 Messages aggregation result:', JSON.stringify(messages, null, 2));
 
     // If no messages found, return empty array early
     if (!messages.length) {
+      console.log('🔍 No messages found for user, returning empty array');
       return res.json([]);
     }
 
@@ -328,7 +357,8 @@ router.get('/conversations', verifyToken, async (req, res) => {
     );
 
     const validConversations = conversations.filter(Boolean);
-    console.log(`Returning ${validConversations.length} valid conversations`);
+    console.log(`🔍 Returning ${validConversations.length} valid conversations`);
+    console.log('🔍 Final conversations:', JSON.stringify(validConversations, null, 2));
 
     res.json(validConversations);
   } catch (error) {

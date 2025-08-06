@@ -7,29 +7,16 @@ import { io, Socket } from 'socket.io-client';
 import ErrorModal from '../components/ErrorModal';
 
 interface Conversation {
-  _id: string;
-  jobId: {
-    _id: string;
-    title: string;
-  };
-  recipientId: {
+  jobId: string;
+  jobTitle: string;
+  otherUser: {
     _id: string;
     name: string;
     email: string;
-    avatar?: string;
   };
-  senderId: {
-    _id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  lastMessage?: {
-    content: string;
-    createdAt: string;
-    senderId: string;
-    read: boolean;
-  };
+  lastMessage: string;
+  updatedAt: string;
+  messageCount: number;
   unreadCount: number;
 }
 
@@ -80,12 +67,8 @@ const Conversations: React.FC = () => {
       console.log('Conversations response:', response);
 
       if (Array.isArray(response)) {
-        const transformedConversations = response.map((conv) => ({
-          ...conv,
-          recipientId: conv.senderId._id === userId ? conv.recipientId : conv.senderId,
-        }));
-        console.log('Transformed conversations:', transformedConversations);
-        setConversations(transformedConversations);
+        console.log('Raw conversations response:', response);
+        setConversations(response);
       } else if (response === null || response === undefined) {
         // Handle case where API returns null/undefined (no conversations)
         console.log('No conversations found');
@@ -101,11 +84,12 @@ const Conversations: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching conversations:', error.response || error);
-      const errorMessage = error.response?.data?.message || 'Failed to load conversations';
+      const errorMessage = error.response?.data?.message || 
+        (error.response?.status === 404 ? 'No conversations found' : 'Failed to load conversations');
       setError({
         show: true,
         message: errorMessage,
-        severity: 'error',
+        severity: error.response?.status === 404 ? 'info' : 'error',
       });
       setConversations([]);
     } finally {
@@ -124,8 +108,8 @@ const Conversations: React.FC = () => {
 
   const filteredConversations = conversations.filter(
     (conv) =>
-      conv.recipientId.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.jobId.title.toLowerCase().includes(searchQuery.toLowerCase())
+      conv.otherUser.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.jobTitle.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const formatTime = (dateString: string) => {
@@ -146,10 +130,8 @@ const Conversations: React.FC = () => {
   };
 
   const navigateToChat = (jobId: string, userId: string) => {
-    const chatPartnerId =
-      userId === currentUser?._id
-        ? conversations.find((c) => c.jobId._id === jobId)?.recipientId._id
-        : userId;
+    const conversation = conversations.find((c) => c.jobId === jobId);
+    const chatPartnerId = conversation?.otherUser._id;
 
     if (chatPartnerId) {
       navigate(`/chat/${jobId}/${chatPartnerId}`);
@@ -170,7 +152,7 @@ const Conversations: React.FC = () => {
     const isProduction = import.meta.env.MODE === 'production';
     const SOCKET_URL = isProduction
       ? 'https://kazi-hub.onrender.com'
-      : (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace('/api', '');
+      : (import.meta.env.VITE_API_URL || 'https://kazi-hub.onrender.com').replace('/api', '');
 
     if (socketRef.current) {
       socketRef.current.disconnect();
@@ -208,22 +190,17 @@ const Conversations: React.FC = () => {
     });
 
     socketRef.current.on('new_message', (message: Message) => {
-      if (selectedChat?.jobId._id === message.jobId) {
+      if (selectedChat?.jobId === message.jobId) {
         setMessages((prev) => [...prev, message]);
         scrollToBottom();
       }
 
       setConversations((prev) =>
         prev.map((conv) => {
-          if (conv.jobId._id === message.jobId) {
+          if (conv.jobId === message.jobId) {
             return {
               ...conv,
-              lastMessage: {
-                content: message.content,
-                createdAt: message.createdAt,
-                senderId: message.senderId,
-                read: message.read,
-              },
+              lastMessage: message.content,
               unreadCount:
                 message.recipientId === userId
                   ? conv.unreadCount + 1
@@ -245,7 +222,7 @@ const Conversations: React.FC = () => {
         console.log('🛑 Socket disconnected on component unmount');
       }
     };
-  }, [currentUser, selectedChat?._id]);
+  }, [currentUser, selectedChat?.jobId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -257,7 +234,7 @@ const Conversations: React.FC = () => {
     if (selectedChat && userId) {
       const fetchMessages = async () => {
         try {
-          const response = await chat.getMessages(selectedChat.jobId._id, selectedChat.recipientId._id);
+          const response = await chat.getMessages(selectedChat.jobId, selectedChat.otherUser._id);
           setMessages(response);
           scrollToBottom();
         } catch (error) {
@@ -278,9 +255,9 @@ const Conversations: React.FC = () => {
 
     try {
       const message = await chat.sendMessage(
-        selectedChat.jobId._id,
+        selectedChat.jobId,
         newMessage.trim(),
-        selectedChat.recipientId._id
+        selectedChat.otherUser._id
       );
 
       setMessages((prev) => [...prev, message]);
@@ -397,22 +374,21 @@ const Conversations: React.FC = () => {
             <div className="divide-y divide-gray-100">
               {filteredConversations.map((conversation) => (
                 <div
-                  key={conversation._id}
+                  key={conversation.jobId}
                   onClick={() => setSelectedChat(conversation)}
                   className={`px-3 sm:px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-150 ${
-                    selectedChat?._id === conversation._id ? 'bg-teal-50' : ''
+                    selectedChat?.jobId === conversation.jobId ? 'bg-teal-50' : ''
                   } ${conversation.unreadCount > 0 ? 'bg-teal-50/60' : ''}`}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0 relative">
                       <img
                         src={
-                          conversation.recipientId.avatar ||
                           `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            conversation.recipientId.name
+                            conversation.otherUser.name
                           )}&background=26A69A&color=fff`
                         }
-                        alt={conversation.recipientId.name}
+                        alt={conversation.otherUser.name}
                         className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover"
                       />
                       {conversation.unreadCount > 0 && (
@@ -424,28 +400,19 @@ const Conversations: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <p className="text-sm sm:text-base font-semibold text-gray-900 truncate">
-                          {conversation.recipientId.name}
+                          {conversation.otherUser.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {conversation.lastMessage && formatTime(conversation.lastMessage.createdAt)}
+                          {conversation.updatedAt && formatTime(conversation.updatedAt)}
                         </p>
                       </div>
                       <p className="text-xs sm:text-sm text-teal-600 font-medium truncate mt-0.5">
-                        {conversation.jobId.title}
+                        {conversation.jobTitle}
                       </p>
                       <div className="flex items-center mt-0.5">
-                        {conversation.lastMessage && conversation.lastMessage.senderId === currentUser._id && (
-                          <CheckCheck
-                            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 ${
-                              conversation.lastMessage.read ? 'text-teal-500' : 'text-gray-400'
-                            }`}
-                          />
-                        )}
                         <p className="text-xs sm:text-sm text-gray-500 truncate">
                           {conversation.lastMessage
-                            ? `${conversation.lastMessage.senderId === currentUser._id ? 'You: ' : ''}${
-                                conversation.lastMessage.content
-                              }`
+                            ? conversation.lastMessage
                             : 'Start a conversation'}
                         </p>
                       </div>
@@ -479,19 +446,18 @@ const Conversations: React.FC = () => {
               )}
               <img
                 src={
-                  selectedChat.recipientId.avatar ||
                   `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    selectedChat.recipientId.name
+                    selectedChat.otherUser.name
                   )}&background=26A69A&color=fff`
                 }
-                alt={selectedChat.recipientId.name}
+                alt={selectedChat.otherUser.name}
                 className="h-8 w-8 sm:h-10 sm:w-10 rounded-full mr-2 sm:mr-3"
               />
               <div className="flex-1 min-w-0">
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                  {selectedChat.recipientId.name}
+                  {selectedChat.otherUser.name}
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-500 truncate">{selectedChat.jobId.title}</p>
+                <p className="text-xs sm:text-sm text-gray-500 truncate">{selectedChat.jobTitle}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <button className="p-2 rounded-full hover:bg-gray-100" aria-label="Video call">

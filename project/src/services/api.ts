@@ -5,7 +5,7 @@ import type { Job, JobApplication } from '../types';
 const isProduction = import.meta.env.MODE === 'production';
 const API_BASE_URL = isProduction 
   ? 'https://kazi-hub.onrender.com/api'  // Production backend URL
-  : (import.meta.env.VITE_API_URL || 'http://192.168.1.246:5000/api'); // Development URL
+  : (import.meta.env.VITE_API_URL || 'https://kazi-hub.onrender.com/api'); // Development URL
 
 interface ProfileData {
   _id: string;
@@ -662,10 +662,18 @@ export const chat = {
 
     console.log('Fetching conversations for user:', userId);
     try {
-      const response = await api.get(`/chats/conversations/${userId}`);
+      console.log('Making API call to:', `${API_BASE_URL}/chats/conversations`);
+      console.log('Auth token:', localStorage.getItem('token') ? 'Present' : 'Missing');
+      const response = await api.get('/chats/conversations');
+      console.log('Conversations API response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching conversations:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        message: error.response?.data,
+        url: error.config?.url
+      });
       return [];
     }
   },
