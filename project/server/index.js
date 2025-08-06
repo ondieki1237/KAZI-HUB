@@ -35,12 +35,12 @@ const CLIENT_PORT = 5173;
 const allowedOrigins = [
   `http://localhost:${CLIENT_PORT}`,
   `http://${HOST}:${CLIENT_PORT}`,
-  'https://your-frontend-domain.com', // <-- Replace with your actual frontend domain
+  'https://kazi-hub-1.onrender.com'  // <-- Frontend Domain Added
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS not allowed for this origin'));
@@ -52,7 +52,7 @@ app.use(cors({
   exposedHeaders: ['Content-Disposition']
 }));
 
-// Add OPTIONS handling for preflight requests
+// Handle Preflight Requests
 app.options('*', cors());
 
 // Middleware
