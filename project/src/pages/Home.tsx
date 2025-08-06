@@ -105,11 +105,6 @@ function Home() {
       }
     });
 
-    socketRef.current.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
-      toast.error('Failed to connect to notification server');
-    });
-
     socketRef.current.on('disconnect', () => {
       console.warn('🔌 Socket disconnected');
     });

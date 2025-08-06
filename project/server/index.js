@@ -5,6 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
+import { Server } from 'socket.io'; // Explicitly import socket.io
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import jobRoutes from './routes/jobs.js';
@@ -24,33 +25,57 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
-const io = initializeSocket(server);
+
+// Socket.IO Configuration
+const io = new Server(server, {
+  cors: {
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        `http://localhost:${process.env.CLIENT_PORT || 5173}`,
+        `http://${process.env.HOST || 'localhost'}:${process.env.CLIENT_PORT || 5173}`,
+        'https://kazi-hub-1.onrender.com', // Production frontend domain
+      ];
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS not allowed for this origin'));
+      }
+    },
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// Initialize Socket.IO from chat.js (merge with the above configuration)
+initializeSocket(io); // Pass the io instance to your chat.js initializeSocket function
 
 // Environment variables
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || 'localhost';
-const CLIENT_PORT = 5173;
+const CLIENT_PORT = process.env.CLIENT_PORT || 5173;
 
-// CORS Configuration
+// CORS Configuration for Express
 const allowedOrigins = [
   `http://localhost:${CLIENT_PORT}`,
   `http://${HOST}:${CLIENT_PORT}`,
-  'https://kazi-hub-1.onrender.com'  // <-- Frontend Domain Added
+  'https://kazi-hub-1.onrender.com',
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed for this origin'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Disposition']
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS not allowed for this origin'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Disposition'],
+  })
+);
 
 // Handle Preflight Requests
 app.options('*', cors());
@@ -70,39 +95,44 @@ app.use((req, res, next) => {
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
-  keyGenerator: (req) => req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || '127.0.0.1'
+  keyGenerator: (req) =>
+    req.headers['x-forwarded-for'] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    '127.0.0.1',
 });
 app.use('/api/', limiter);
 
 // MongoDB Connection
 console.log('Attempting to connect to MongoDB...');
-mongoose.connect(process.env.MONGO_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  autoIndex: true,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-  family: 4
-})
-.then(() => {
-  console.log('✅ Connected to MongoDB successfully');
-  console.log('Connection string used:', process.env.MONGO_URL.replace(/\/\/[^:]+:[^@]+@/, '//[REDACTED]@'));
-})
-.catch((err) => {
-  console.error('❌ MongoDB Connection Error:', {
-    message: err.message,
-    code: err.code,
-    name: err.name
+mongoose
+  .connect(process.env.MONGO_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    autoIndex: true,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    family: 4,
+  })
+  .then(() => {
+    console.log('✅ Connected to MongoDB successfully');
+    console.log('Connection string used:', process.env.MONGO_URL.replace(/\/\/[^:]+:[^@]+@/, '//[REDACTED]@'));
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB Connection Error:', {
+      message: err.message,
+      code: err.code,
+      name: err.name,
+    });
   });
-});
 
 mongoose.connection.on('error', (err) => {
   console.error('MongoDB error:', {
     message: err.message,
     code: err.code,
-    name: err.name
+    name: err.name,
   });
 });
 
@@ -125,12 +155,14 @@ app.use('/api/cv-maker', cvRoutes);
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    if (!req.url.startsWith('/socket.io')) {
+      res.sendFile(path.join(__dirname, '../dist/index.html'));
+    }
   });
 } else {
   // Development Routes
   app.get('/api', (req, res) => {
-    res.json({ 
+    res.json({
       status: 'success',
       message: 'Blue Collar Jobs API is running',
       endpoints: {
@@ -140,13 +172,15 @@ if (process.env.NODE_ENV === 'production') {
         mpesa: '/api/mpesa',
         chat: '/api/chats',
         payments: '/api/payments',
-      }
+      },
     });
   });
 
   // Redirect other routes to the frontend during development
   app.get('*', (req, res) => {
-    res.redirect(`http://${HOST}:${CLIENT_PORT}`);
+    if (!req.url.startsWith('/socket.io')) {
+      res.redirect(`http://${HOST}:${CLIENT_PORT}`);
+    }
   });
 }
 
@@ -157,9 +191,9 @@ app.use('/uploads', express.static('uploads'));
 // Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error('🚨 Error:', err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
   });
 });
 
