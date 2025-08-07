@@ -31,7 +31,7 @@ const AdminDashboard: React.FC = () => {
     activeUsers: 0,
     jobsByCategory: [],
     usersByRole: [],
-    recentActivities: []
+    recentActivities: [],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,29 +51,27 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const token = localStorage.getItem('token');
       console.log('Token being sent:', token);
-      
+
       if (!token) {
         throw new Error('No authentication token found');
       }
 
-      // First test the API connection
       await api.get('/admin/test');
-      
       const response = await api.get('/admin/dashboard');
       console.log('Dashboard response:', response);
-      
+
       if (!response.data) {
         throw new Error('No data received from server');
       }
-      
+
       setStats(response.data);
     } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
       let errorMessage = 'Failed to load dashboard data';
-      
+
       if (error.code === 'ERR_NETWORK') {
         errorMessage = 'Network error - Please check if the server is running';
       } else if (error.response?.status === 401) {
@@ -85,7 +83,7 @@ const AdminDashboard: React.FC = () => {
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -93,15 +91,15 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleDeleteJob = async (jobId: string) => {
-    if (window.confirm('Are you sure you want to delete this job?')) {
+  const handleDeleteActivity = async (activityId: string) => {
+    if (window.confirm('Are you sure you want to delete this activity?')) {
       try {
-        await api.delete(`/admin/jobs/${jobId}`);
-        toast.success('Job deleted successfully');
+        await api.delete(`/admin/activities/${activityId}`);
+        toast.success('Activity deleted successfully');
         fetchDashboardData();
       } catch (error) {
-        console.error('Error deleting job:', error);
-        toast.error('Failed to delete job');
+        console.error('Error deleting activity:', error);
+        toast.error('Failed to delete activity');
       }
     }
   };
@@ -119,7 +117,7 @@ const AdminDashboard: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-red-500 text-center">
           <p className="text-xl">{error}</p>
-          <button 
+          <button
             onClick={fetchDashboardData}
             className="mt-4 px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600"
           >
@@ -170,7 +168,7 @@ const AdminDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
@@ -180,7 +178,7 @@ const AdminDashboard: React.FC = () => {
               <Users className="h-8 w-8 text-teal-500" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
@@ -213,40 +211,42 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Jobs by Category Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-xl font-bold mb-4">Jobs by Category</h2>
-            <BarChart width={500} height={300} data={stats.jobsByCategory}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#0088FE" />
-            </BarChart>
+            <div className="w-full overflow-x-auto">
+              <BarChart width={500} height={300} data={stats.jobsByCategory} layout="horizontal">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#0088FE" />
+              </BarChart>
+            </div>
           </div>
 
-          {/* Users by Role Chart */}
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-xl font-bold mb-4">Users by Role</h2>
-            <PieChart width={400} height={300}>
-              <Pie
-                data={stats.usersByRole}
-                cx={200}
-                cy={150}
-                labelLine={false}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {stats.usersByRole.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
+            <div className="w-full flex justify-center">
+              <PieChart width={400} height={300}>
+                <Pie
+                  data={stats.usersByRole}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {stats.usersByRole.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </div>
           </div>
         </div>
 
@@ -254,33 +254,42 @@ const AdminDashboard: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="text-left border-b">
-                  <th className="pb-2">User</th>
-                  <th className="pb-2">Action</th>
-                  <th className="pb-2">Time</th>
-                  <th className="pb-2">Actions</th>
+                <tr className="text-left bg-gray-50">
+                  <th className="px-4 py-3 font-medium text-gray-700">User</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Action</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Time</th>
+                  <th className="px-4 py-3 font-medium text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {stats.recentActivities.map((activity) => (
-                  <tr key={activity._id} className="border-b hover:bg-gray-50">
-                    <td className="py-2">{activity.user}</td>
-                    <td className="py-2">{activity.action}</td>
-                    <td className="py-2">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </td>
-                    <td className="py-2">
-                      <button
-                        onClick={() => handleDeleteJob(activity._id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+                {stats.recentActivities.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-3 text-center text-gray-500">
+                      No recent activities found
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  stats.recentActivities.map((activity) => (
+                    <tr key={activity._id} className="border-t hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">{activity.user}</td>
+                      <td className="px-4 py-3">{activity.action}</td>
+                      <td className="px-4 py-3">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleDeleteActivity(activity._id)}
+                          className="text-red-500 hover:text-red-700 focus:outline-none"
+                          title="Delete Activity"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -290,4 +299,4 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-export default AdminDashboard; 
+export default AdminDashboard;
