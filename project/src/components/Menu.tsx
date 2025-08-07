@@ -26,6 +26,7 @@ interface MenuItem {
   label: string;
   path: string;
   description: string;
+  onClick?: () => void;
 }
 
 interface MenuSection {
@@ -300,6 +301,14 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
   const [isDesktopView, setIsDesktopView] = useState(false);
   const menuContentRef = useRef<HTMLDivElement>(null);
 
+  // Define handleLogout function
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    navigate("/login");
+    window.location.reload(); // Force reload to update state
+  };
+
   const menuItems = [
     {
       title: "Navigation",
@@ -333,6 +342,7 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
               { icon: User, label: "Profile", path: "/profile/my-profile" },
               { icon: Settings, label: "Settings", path: "/settings" },
               { icon: HelpCircle, label: "Help", path: "/help" },
+              { icon: LogOut, label: "Logout", path: "#", onClick: handleLogout },
             ],
           },
         ]
@@ -396,7 +406,7 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
         </button>
       )}
 
-      {isDesktopView && <DesktopNav onLogout={onLogout} />}
+      {isDesktopView && <DesktopNav onLogout={handleLogout} />}
 
       {!isDesktopView && (
         <div
@@ -475,7 +485,11 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
                   <button
                     key={index}
                     onClick={() => {
-                      navigate(item.path);
+                      if (item.onClick) {
+                        item.onClick();
+                      } else {
+                        navigate(item.path);
+                      }
                       toggleMenu();
                     }}
                     style={{
@@ -488,7 +502,7 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
                       background: "none",
                       border: "none",
                       cursor: "pointer",
-                      color: "#374151",
+                      color: item.label === "Logout" ? "#DC2626" : "#374151",
                     }}
                   >
                     <item.icon style={{ width: "20px", height: "20px" }} />
@@ -497,38 +511,6 @@ const Menu: React.FC<MenuProps> = ({ onLogout }) => {
                 ))}
               </div>
             ))}
-
-            {isAuthenticated && (
-              <div
-                style={{
-                  padding: "24px",
-                  borderTop: "1px solid #E5E7EB",
-                }}
-              >
-                <button
-                  onClick={() => {
-                    onLogout();
-                    toggleMenu();
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    color: "#DC2626",
-                    transition: "background 0.2s ease",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <LogOut style={{ width: "20px", height: "20px" }} />
-                  <span style={{ fontWeight: 500 }}>Logout</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
