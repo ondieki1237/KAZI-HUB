@@ -28,7 +28,12 @@ function Login() {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       toast.success('Login successful!');
-      navigate('/home');
+      // Redirect to /admin for admin user, otherwise /home
+      if (user.email === 'admin@gmail.com') {
+        navigate('/admin');
+      } else {
+        navigate('/home');
+      }
     } catch (error) {
       toast.error('Login failed');
     }
