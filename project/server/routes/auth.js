@@ -407,7 +407,7 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
-// Login
+// In auth.js, /login route
 router.post('/login', async (req, res) => {
   try {
     console.log('Login attempt received:', { email: req.body.email });
@@ -473,13 +473,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Create token with user ID
+    // Create token with userId, email, and role
     console.log('Creating token for user:', email);
     let token;
     try {
       token = jwt.sign(
         { 
-          userId: user._id.toString()
+          userId: user._id.toString(),
+          email: user.email,
+          role: user.role
         }, 
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
@@ -499,6 +501,7 @@ router.post('/login', async (req, res) => {
     console.log('Login successful for user:', {
       userId: user._id,
       email: user.email,
+      role: user.role,
       tokenPreview: token.substring(0, 20) + '...'
     });
 
