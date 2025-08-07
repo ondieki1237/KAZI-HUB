@@ -128,6 +128,43 @@ export const auth = {
     }
   },
 
+  registerWithGoogle: async (userData: {
+    name: string;
+    email: string;
+    googleId: string;
+    role: 'worker' | 'employer';
+  }) => {
+    try {
+      console.log('Making Google registration request with data:', {
+        ...userData,
+      });
+      
+      // Transform the data to match server expectations
+      const transformedData = {
+        name: userData.name,
+        email: userData.email,
+        googleId: userData.googleId,
+        role: userData.role,
+        phone: '', // Default empty phone as Google doesn't provide it
+        location: 'Default Location', // Default location
+      };
+      
+      const response = await api.post('/auth/register/google', transformedData);
+      console.log('Google registration response:', response.data);
+      
+      // Store token and user data if provided in response
+      if (response.data.token && response.data.user) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      
+      return { ...response.data, email: userData.email };
+    } catch (error: any) {
+      console.error('Google registration API error:', error.response?.data || error);
+      throw error;
+    }
+  },
+
   verifyEmail: async (email: string, code: string) => {
     try {
       const response = await api.post('/auth/verify', { email, code });
@@ -775,10 +812,6 @@ export const notifications = {
       throw error;
     }
   },
-
-
-
-
   deleteNotification: async (notificationId: string) => {
     try {
       if (!notificationId) throw new Error('Notification ID is required');

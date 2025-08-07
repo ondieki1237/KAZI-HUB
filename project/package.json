@@ -24,6 +24,7 @@
     "cors": "^2.8.5",
     "date-fns": "^3.3.1",
     "framer-motion": "^12.6.2",
+    "google-auth-library": "^10.2.1",
     "html2pdf.js": "^0.10.3",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.344.0",

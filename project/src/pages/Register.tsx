@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Lock, Phone, MapPin } from 'lucide-react';
 import { auth } from '../services/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +26,55 @@ const Register: React.FC = () => {
   });
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
+  // Load Google Sign-In SDK
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.onload = () => {
+      window.google.accounts.id.initialize({
+        client_id: 'YOUR_GOOGLE_CLIENT_ID', // Replace with your Google Client ID
+        callback: handleGoogleSignUp,
+      });
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  // Handle Google Sign-Up response
+  const handleGoogleSignUp = async (response: any) => {
+    setLoading(true);
+    try {
+      const { credential } = response; // Google ID token
+      const profile = JSON.parse(atob(credential.split('.')[1])); // Decode JWT to get user info
+
+      const userData = {
+        name: profile.name,
+        email: profile.email,
+        googleId: profile.sub, // Google user ID
+        role: formData.role, // Use the role from the form
+      };
+
+      // Send Google user data to your backend
+      const authResponse = await auth.registerWithGoogle(userData);
+
+      toast.success('Registration successful with Google!');
+      navigate('/verify-email', { state: { email: userData.email } });
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Google sign-up failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Trigger Google Sign-In
+  const triggerGoogleSignUp = () => {
+    window.google.accounts.id.prompt();
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -30,12 +85,14 @@ const Register: React.FC = () => {
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
+      setLoading(false);
       return;
     }
 
     const phoneRegex = /^\d{10,12}$/;
     if (!phoneRegex.test(formData.phone.replace(/[^0-9]/g, ''))) {
       toast.error('Please enter a valid phone number');
+      setLoading(false);
       return;
     }
 
@@ -46,9 +103,10 @@ const Register: React.FC = () => {
         email: formData.email,
         password: formData.password,
         phoneNumber: formData.phone,
-        role: formData.role
+        location: formData.location,
+        role: formData.role,
       });
-      
+
       toast.success('Registration successful! Please verify your email.');
       navigate('/verify-email', { state: { email: formData.email } });
     } catch (error: any) {
@@ -77,6 +135,34 @@ const Register: React.FC = () => {
                 Sign in here
               </Link>
             </p>
+          </div>
+
+          {/* Google Sign-Up Button */}
+          <div>
+            <button
+              type="button"
+              onClick={triggerGoogleSignUp}
+              disabled={loading}
+              className={`group relative w-full flex justify-center items-center py-2.5 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-medium ${
+                loading ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
+            >
+              <img
+                src="https://www.google.com/favicon.ico"
+                alt="Google logo"
+                className="w-5 h-5 mr-2"
+              />
+              Sign up with Google
+            </button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with</span>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

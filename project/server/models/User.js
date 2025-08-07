@@ -38,10 +38,16 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true
+      required: false // Changed to false for Google users
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true // Allows null/undefined for non-Google users
     },
     phone: {
-      type: String
+      type: String,
+      default: '' // Default empty for Google users
     },
     location: {
       type: {
@@ -51,12 +57,12 @@ const userSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number],
-        default: undefined
+        default: [0, 0] // Default coordinates
       }
     },
     locationString: {
       type: String,
-      default: ''
+      default: 'Default Location' // Default for Google users
     },
     bio: {
       type: String
@@ -83,7 +89,7 @@ const userSchema = new mongoose.Schema(
     },
     verified: {
       type: Boolean,
-      default: false
+      default: false // Google users will be set to true
     },
     verificationCode: {
       code: String,
@@ -102,7 +108,7 @@ const userSchema = new mongoose.Schema(
     },
     addressString: {
       type: String,
-      required: true
+      default: 'Default Location' // Changed to default for Google users
     },
     documents: [
       {
@@ -138,7 +144,7 @@ userSchema.index({ location: '2dsphere' });
 
 // Middleware to hash password before saving
 userSchema.pre('save', async function (next) {
-  if (this.isModified('password')) {
+  if (this.isModified('password') && this.password) { // Only hash if password exists
     this.password = await bcrypt.hash(this.password, 10);
   }
   next();

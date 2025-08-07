@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library'; // Added for Google ID token verification
 import User from '../models/User.js';
 import Joi from 'joi';
 import { verifyToken } from '../middleware/auth.js';
@@ -7,6 +8,9 @@ import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from 
 import mongoose from 'mongoose';
 
 const router = express.Router();
+
+// Initialize Google OAuth2 client
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // At the top of the file, after imports
 if (!process.env.JWT_SECRET) {
@@ -34,7 +38,7 @@ const checkDbConnection = (req, res, next) => {
 // Apply middleware to all routes
 router.use(checkDbConnection);
 
-// Validation schema
+// Validation schema for regular registration
 const registerSchema = Joi.object({
   name: Joi.string().min(3).max(30).required()
     .messages({
@@ -72,6 +76,38 @@ const registerSchema = Joi.object({
     .messages({
       'any.only': 'Role must be either worker or employer',
       'any.required': 'Role is required'
+    })
+});
+
+// Validation schema for Google registration
+const googleRegisterSchema = Joi.object({
+  name: Joi.string().min(3).max(30).required()
+    .messages({
+      'string.min': 'Name must be at least 3 characters long',
+      'string.max': 'Name cannot be longer than 30 characters',
+      'any.required': 'Name is required'
+    }),
+  email: Joi.string().email().required()
+    .messages({
+      'string.email': 'Please enter a valid email address',
+      'any.required': 'Email is required'
+    }),
+  googleId: Joi.string().required()
+    .messages({
+      'any.required': 'Google ID is required'
+    }),
+  role: Joi.string().valid('worker', 'employer').required()
+    .messages({
+      'any.only': 'Role must be either worker or employer',
+      'any.required': 'Role is required'
+    }),
+  phone: Joi.string().pattern(/^\d{10,12}$/).allow('').optional()
+    .messages({
+      'string.pattern.base': 'Please enter a valid phone number'
+    }),
+  location: Joi.string().min(3).allow('').optional()
+    .messages({
+      'string.min': 'Location must be at least 3 characters long'
     })
 });
 
@@ -179,6 +215,107 @@ router.post('/register', async (req, res) => {
     console.error('Registration error:', error);
     return res.status(500).json({ 
       message: 'Error registering user', 
+      error: error.message 
+    });
+  }
+});
+
+// Google Register
+router.post('/register/google', async (req, res) => {
+  try {
+    console.log('Google registration attempt:', {
+      ...req.body,
+      googleId: req.body.googleId ? '[REDACTED]' : undefined
+    });
+
+    // Validate input
+    const { error } = googleRegisterSchema.validate(req.body);
+    if (error) {
+      console.log('Validation error:', error.details[0].message);
+      return res.status(400).json({ message: error.details[0].message });
+    }
+
+    const { name, email, googleId, role, phone, location } = req.body;
+
+    try {
+      // Check if user exists (by email or googleId)
+      const existingUser = await User.findOne({ 
+        $or: [
+          { email },
+          { googleId }
+        ]
+      });
+
+      if (existingUser) {
+        if (existingUser.email === email) {
+          return res.status(400).json({ message: 'Email is already registered' });
+        }
+        if (existingUser.googleId === googleId) {
+          return res.status(400).json({ message: 'Google account is already registered' });
+        }
+      }
+
+      // Create new user
+      const user = new User({
+        name,
+        email,
+        googleId,
+        role,
+        phone: phone || '',
+        location: {
+          type: 'Point',
+          coordinates: [0, 0] // Default coordinates
+        },
+        locationString: location || 'Default Location',
+        addressString: location || 'Default Location',
+        verified: true, // Google users are considered verified
+      });
+
+      // Save user
+      await user.save();
+      console.log('Google user saved successfully:', {
+        id: user._id,
+        email: user.email
+      });
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id.toString() },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      // Send welcome email
+      try {
+        const emailSent = await sendWelcomeEmail(email, name);
+        console.log('Welcome email status for Google user:', emailSent);
+      } catch (emailError) {
+        console.error('Error sending welcome email for Google user:', emailError);
+        // Continue despite email failure
+      }
+
+      // Send response without sensitive data
+      const userResponse = user.toObject();
+      delete userResponse.googleId;
+      delete userResponse.password;
+      delete userResponse.verificationCode;
+
+      return res.status(201).json({
+        message: 'Google registration successful',
+        token,
+        user: userResponse
+      });
+    } catch (dbError) {
+      console.error('Database operation error:', dbError);
+      return res.status(500).json({ 
+        message: 'Error saving Google user to database', 
+        error: dbError.message 
+      });
+    }
+  } catch (error) {
+    console.error('Google registration error:', error);
+    return res.status(500).json({ 
+      message: 'Error registering Google user', 
       error: error.message 
     });
   }
