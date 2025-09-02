@@ -1,3 +1,79 @@
+// ...existing code...
+
+// Place this after router is initialized
+
+// Get all conversations for a specific user by userId (admin or system use)
+router.get('/conversations/:userId', verifyToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    const messages = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { senderId: new ObjectId(userId) },
+            { recipientId: new ObjectId(userId) }
+          ]
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$jobId',
+          lastMessage: { $first: '$content' },
+          updatedAt: { $first: '$createdAt' },
+          jobId: { $first: '$jobId' },
+          messageCount: { $sum: 1 },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$recipientId', new ObjectId(userId)] },
+                    { $eq: ['$read', false] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    const conversations = await Promise.all(
+      messages.map(async (msg) => {
+        try {
+          if (!mongoose.isValidObjectId(msg.jobId)) return null;
+          const job = await Job.findById(msg.jobId).select('title employerId workerId').lean();
+          if (!job) return null;
+          const otherUserId = job.employerId.toString() === userId ? job.workerId : job.employerId;
+          if (!mongoose.isValidObjectId(otherUserId)) return null;
+          const otherUser = await User.findById(otherUserId).select('name email').lean();
+          if (!otherUser) return null;
+          return {
+            jobId: msg.jobId.toString(),
+            jobTitle: job.title,
+            otherUser: { ...otherUser, _id: otherUser._id.toString() },
+            lastMessage: msg.lastMessage,
+            updatedAt: msg.updatedAt,
+            messageCount: msg.messageCount,
+            unreadCount: msg.unreadCount
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+    res.json(conversations.filter(Boolean));
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching conversations', error: error.message });
+  }
+});
 import express from 'express';
 import { Server } from 'socket.io';
 import Message from '../models/Message.js';

@@ -3,9 +3,9 @@ import type { Job, JobApplication } from '../types';
 
 // Determine base URL based on environment
 const isProduction = import.meta.env.MODE === 'production';
-const API_BASE_URL = isProduction 
-  ? 'https://kazi-hub.onrender.com/api'  // Production backend URL
-  : (import.meta.env.VITE_API_URL || 'https://kazi-hub.onrender.com/api'); // Development URL
+export const API_URL = isProduction
+  ? 'https://kazi-hub.onrender.com'
+  : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
 
 interface ProfileData {
   _id: string;
@@ -37,7 +37,7 @@ export const setErrorModalHandler = (handler: typeof showErrorModal) => {
 
 // Create axios instance with dynamic base URL
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -683,36 +683,9 @@ export const chat = {
       throw error;
     }
   },
-  getConversations: async () => {
-    const user = getStoredUser();
-    if (!user?._id) {
-      console.error('No user ID found in localStorage');
-      return [];
-    }
-    
-    // More flexible ID validation - allow both ObjectId format and other formats
-    const userId = user._id || user.id;
-    if (!userId) {
-      console.error('No valid user ID found');
-      return [];
-    }
-
-    console.log('Fetching conversations for user:', userId);
-    try {
-      console.log('Making API call to:', `${API_BASE_URL}/chats/conversations`);
-      console.log('Auth token:', localStorage.getItem('token') ? 'Present' : 'Missing');
-      const response = await api.get('/chats/conversations');
-      console.log('Conversations API response:', response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching conversations:', error);
-      console.error('Error details:', {
-        status: error.response?.status,
-        message: error.response?.data,
-        url: error.config?.url
-      });
-      return [];
-    }
+  getConversations: async (userId: string) => {
+    const response = await api.get(`/api/chats/conversations/${userId}`);
+    return response.data;
   },
 };
 

@@ -61,15 +61,12 @@ const io = new Server(server, {
 initializeSocket(io); // Pass the io instance to your chat.js initializeSocket function
 
 // CORS Configuration for Express
+// Allow all origins in development for easier API testing (Postman, browser, etc.)
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.some(o => origin === o || origin.startsWith(o + "/"))) {
-        callback(null, true);
-      } else {
-        callback(new Error('CORS not allowed for this origin'));
-      }
+      // Allow all origins in development
+      callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

@@ -63,18 +63,14 @@ const Conversations: React.FC = () => {
     try {
       if (!silent) setLoading(true);
       console.log('Fetching conversations for user:', userId);
-      const response = await chat.getConversations();
+      const response = await chat.getConversations(userId); // <-- pass userId here
       console.log('Conversations response:', response);
 
       if (Array.isArray(response)) {
-        console.log('Raw conversations response:', response);
         setConversations(response);
       } else if (response === null || response === undefined) {
-        // Handle case where API returns null/undefined (no conversations)
-        console.log('No conversations found');
         setConversations([]);
       } else {
-        console.error('Invalid response format:', response);
         setError({
           show: true,
           message: 'Failed to load conversations: Invalid response from server',

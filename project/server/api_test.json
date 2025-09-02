@@ -1,0 +1,180 @@
+{
+  "auth": {
+    "register": {
+      "method": "POST",
+      "path": "/auth/register",
+      "body": {
+        "name": "Seth Makori",
+        "username": "seth_dev",
+        "email": "seth@example.com",
+        "password": "StrongPass!23",
+        "phone": "+254759433906",
+        "location": "Mombasa, Kenya",
+        "role": "worker"
+      }
+    },
+    "login": {
+      "method": "POST",
+      "path": "/auth/login",
+      "body": {
+        "email": "seth@example.com",
+        "password": "StrongPass!23"
+      }
+    },
+    "forgot-password": {
+      "method": "POST",
+      "path": "/auth/forgot-password",
+      "body": {
+        "email": "seth@example.com"
+      }
+    },
+    "reset-password": {
+      "method": "POST",
+      "path": "/auth/reset-password",
+      "body": {
+        "token": "abc123resetToken",
+        "newPassword": "NewPass!456"
+      }
+    }
+  },
+  "jobs": {
+    "my-posted": {
+      "method": "GET",
+      "path": "/jobs/my-posted",
+      "auth": true
+    },
+    "search": {
+      "method": "GET",
+      "path": "/jobs/search",
+      "query": {
+        "category": "Software Development",
+        "location": "Nairobi",
+        "query": "React Developer"
+      }
+    },
+    "featured": {
+      "method": "GET",
+      "path": "/jobs/featured",
+      "query": {
+        "category": "Design"
+      }
+    }
+  },
+  "users": {
+    "my-profile": {
+      "method": "GET",
+      "path": "/users/my-profile",
+      "auth": true
+    },
+    "update-profile": {
+      "method": "PATCH",
+      "path": "/users/profile",
+      "auth": true,
+      "body": {
+        "name": "Seth M. Ondieki",
+        "location": "Nairobi, Kenya",
+        "phone": "+254700123456"
+      }
+    }
+  },
+  "skills": {
+    "create": {
+      "method": "POST",
+      "path": "/skills/",
+      "auth": true,
+      "formData": true,
+      "fields": {
+        "isGroup": false,
+        "skillDescription": "Full-stack web development with React, Node.js, and MySQL",
+        "availability": "Weekdays 9am - 6pm",
+        "charges": "KES 1500/hour",
+        "groupName": "",
+        "contact": "{\"email\": \"seth@example.com\", \"phone\": \"+254759433906\"}",
+        "pastWorkFiles": ["portfolio.pdf", "project-screenshot.png"]
+      }
+    },
+    "list": {
+      "method": "GET",
+      "path": "/skills/"
+      }
+    },
+  "payments": {
+    "deposit": {
+      "method": "POST",
+      "path": "/payments/deposit",
+      "auth": true,
+      "body": {
+        "phoneNumber": "+254759433906",
+        "amount": 5000
+      }
+    }
+  },
+  "notifications": {
+    "list": {
+      "method": "GET",
+      "path": "/notifications/",
+      "auth": true
+    },
+    "mark-read": {
+      "method": "PATCH",
+      "path": "/notifications/123/read",
+      "auth": true
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "method": "GET",
+      "path": "/admin/dashboard",
+      "auth": true
+    }
+  },
+  "chat": {
+    "get-messages": {
+      "method": "GET",
+      "path": "/chat/456",
+      "auth": true,
+      "query": {
+        "userId": "789"
+      }
+    }
+  },
+  "mpesa": {
+    "send-payment": {
+      "method": "POST",
+      "path": "/mpesa/send-payment",
+      "auth": true,
+      "body": {
+        "phoneNumber": "+254700123456",
+        "amount": 2000,
+        "paymentId": "pay_12345xyz"
+      }
+    }
+  },
+  "cv": {
+    "generate": {
+      "method": "POST",
+      "path": "/cv/generate",
+      "auth": true,
+      "body": {
+        "fullName": "Seth Makori Ondieki",
+        "email": "seth@example.com",
+        "phone": "+254759433906",
+        "address": "Mombasa, Kenya",
+        "summary": "Software Engineer with experience in web apps, mobile apps, and backend development."
+      }
+    }
+  },
+  "cvMaker": {
+    "generate": {
+      "method": "POST",
+      "path": "/cvMaker/generate",
+      "body": {
+        "fullName": "John Doe",
+        "email": "john.doe@example.com",
+        "phone": "+254711223344",
+        "address": "Kisumu, Kenya",
+        "summary": "Creative graphic designer with 5 years of experience in branding and digital media."
+      }
+    }
+  }
+}
