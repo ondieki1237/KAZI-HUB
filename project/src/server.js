@@ -33,12 +33,17 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests from allowed origins OR mobile apps (no origin)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS not allowed for this origin: " + origin));
+      // ✅ Allow mobile apps (origin === undefined or null)
+      if (!origin) {
+        return callback(null, true);
       }
+
+      // ✅ Match exact string or startsWith (in case of trailing slash)
+      if (allowedOrigins.some(o => origin === o || origin.startsWith(o + "/"))) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS not allowed for this origin: " + origin));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
