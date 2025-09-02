@@ -1,6 +1,67 @@
-// ...existing code...
 
-// Place this after router is initialized
+// ------------------- IMPORTS -------------------
+import express from 'express';
+import { Server } from 'socket.io';
+import Message from '../models/Message.js';
+import { verifyToken } from '../middleware/auth.js';
+import cors from 'cors';
+import mongoose from 'mongoose';
+import Job from '../models/Job.js';
+import User from '../models/User.js';
+const { ObjectId } = mongoose.Types;
+
+// ------------------- ROUTER INIT -------------------
+const router = express.Router();
+let io; // Declare io variable at the top level
+
+// ------------------- SOCKET.IO INIT -------------------
+export const initializeSocket = (server) => {
+  const allowedOrigins = process.env.NODE_ENV === 'production' 
+    ? ['https://your-frontend-domain.com'] // <-- Replace with your actual frontend domain
+    : ['http://localhost:5173', 'http://192.168.1.246:5173'];
+
+  io = new Server(server, {
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS not allowed for this origin'));
+        }
+      },
+      methods: ['GET', 'POST'],
+      credentials: true
+    },
+    path: '/socket.io'
+  });
+
+  io.on('connection', (socket) => {
+    console.log('🔗 User connected:', socket.id);
+
+    socket.on('join_room', (jobId) => {
+      socket.join(jobId);
+      console.log(`👥 User ${socket.id} joined room ${jobId}`);
+    });
+
+    socket.on('send_message', async (data) => {
+      // Emit to all users in the job room
+      socket.to(data.jobId).emit('new_message', data);
+      // Also emit to the specific recipient
+      socket.to(data.recipientId).emit('new_message', data);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ User disconnected:', socket.id);
+    });
+  });
+
+  return io;
+};
+
+// ------------------- ROUTES -------------------
+
+// Handle CORS preflight requests
+router.options('/:jobId/messages', cors());
 
 // Get all conversations for a specific user by userId (admin or system use)
 router.get('/conversations/:userId', verifyToken, async (req, res) => {
@@ -74,66 +135,6 @@ router.get('/conversations/:userId', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Error fetching conversations', error: error.message });
   }
 });
-import express from 'express';
-import { Server } from 'socket.io';
-import Message from '../models/Message.js';
-import { verifyToken } from '../middleware/auth.js';
-import cors from 'cors';
-import mongoose from 'mongoose';
-import Job from '../models/Job.js';
-import User from '../models/User.js';
-const { ObjectId } = mongoose.Types;
-
-const router = express.Router();
-let io; // Declare io variable at the top level
-
-// Initialize Socket.IO
-export const initializeSocket = (server) => {
-  const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? ['https://your-frontend-domain.com'] // <-- Replace with your actual frontend domain
-    : ['http://localhost:5173', 'http://192.168.1.246:5173'];
-
-  io = new Server(server, {
-    cors: {
-      origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('CORS not allowed for this origin'));
-        }
-      },
-      methods: ['GET', 'POST'],
-      credentials: true
-    },
-    path: '/socket.io'
-  });
-
-  io.on('connection', (socket) => {
-    console.log('🔗 User connected:', socket.id);
-
-    socket.on('join_room', (jobId) => {
-      socket.join(jobId);
-      console.log(`👥 User ${socket.id} joined room ${jobId}`);
-    });
-
-    socket.on('send_message', async (data) => {
-      // Emit to all users in the job room
-      socket.to(data.jobId).emit('new_message', data);
-      
-      // Also emit to the specific recipient
-      socket.to(data.recipientId).emit('new_message', data);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('❌ User disconnected:', socket.id);
-    });
-  });
-
-  return io;
-};
-
-// Handle CORS preflight requests
-router.options('/:jobId/messages', cors());
 
 // Get messages for a specific job
 router.get('/:jobId', verifyToken, async (req, res) => {
@@ -146,13 +147,6 @@ router.get('/:jobId', verifyToken, async (req, res) => {
     if (!mongoose.isValidObjectId(jobId) || !mongoose.isValidObjectId(otherUserId)) {
       return res.status(400).json({ message: 'Invalid ID format' });
     }
-
-    console.log('Fetching messages:', {
-      jobId,
-      currentUserId,
-      otherUserId,
-      timestamp: new Date().toISOString()
-    });
 
     // Find the job
     const job = await Job.findById(jobId).lean();
@@ -203,8 +197,6 @@ router.get('/:jobId', verifyToken, async (req, res) => {
     .populate('recipientId', 'name email')
     .lean();
 
-    console.log(`Found ${messages.length} messages for conversation`);
-
     // Mark messages as read where current user is recipient
     if (messages.length > 0) {
       await Message.updateMany(
@@ -219,7 +211,6 @@ router.get('/:jobId', verifyToken, async (req, res) => {
 
     res.json(messages);
   } catch (error) {
-    console.error('Error fetching messages:', error);
     res.status(500).json({ 
       message: 'Error fetching messages',
       error: error.message 
@@ -290,7 +281,6 @@ router.post('/:jobId', verifyToken, async (req, res) => {
 
     res.status(201).json(populatedMessage);
   } catch (error) {
-    console.error('Error in message creation:', error);
     res.status(500).json({ 
       message: 'Error sending message',
       error: error.message 
@@ -307,29 +297,10 @@ router.get('/test', (req, res) => {
 router.get('/conversations', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log('🔍 Fetching conversations for user:', userId);
-    console.log('🔍 Request headers:', req.headers);
-    console.log('🔍 Request URL:', req.url);
-    console.log('🔍 Request method:', req.method);
-
     // Validate user ID format
     if (!mongoose.isValidObjectId(userId)) {
-      console.log('❌ Invalid user ID format:', userId);
       return res.status(400).json({ message: 'Invalid user ID format' });
     }
-
-    // First, let's check if there are any messages at all
-    const totalMessages = await Message.countDocuments();
-    console.log('🔍 Total messages in database:', totalMessages);
-
-    // Check if there are any messages for this user
-    const userMessages = await Message.countDocuments({
-      $or: [
-        { senderId: new ObjectId(userId) },
-        { recipientId: new ObjectId(userId) }
-      ]
-    });
-    console.log('🔍 Messages for user:', userMessages);
 
     // Find all messages where user is either sender or recipient
     const messages = await Message.aggregate([
@@ -369,12 +340,8 @@ router.get('/conversations', verifyToken, async (req, res) => {
       }
     ]);
 
-    console.log(`🔍 Found ${messages.length} conversations for user ${userId}`);
-    console.log('🔍 Messages aggregation result:', JSON.stringify(messages, null, 2));
-
     // If no messages found, return empty array early
     if (!messages.length) {
-      console.log('🔍 No messages found for user, returning empty array');
       return res.json([]);
     }
 
@@ -382,7 +349,6 @@ router.get('/conversations', verifyToken, async (req, res) => {
       messages.map(async (msg) => {
         try {
           if (!mongoose.isValidObjectId(msg.jobId)) {
-            console.log('Invalid job ID:', msg.jobId);
             return null;
           }
 
@@ -391,7 +357,6 @@ router.get('/conversations', verifyToken, async (req, res) => {
             .lean();
 
           if (!job) {
-            console.log('Job not found for conversation:', msg.jobId);
             return null;
           }
 
@@ -400,7 +365,6 @@ router.get('/conversations', verifyToken, async (req, res) => {
             : job.employerId;
 
           if (!mongoose.isValidObjectId(otherUserId)) {
-            console.log('Invalid other user ID:', otherUserId);
             return null;
           }
 
@@ -409,16 +373,15 @@ router.get('/conversations', verifyToken, async (req, res) => {
             .lean();
 
           if (!otherUser) {
-            console.log('Other user not found:', otherUserId);
             return null;
           }
 
           return {
-            jobId: msg.jobId.toString(), // Convert ObjectId to string
+            jobId: msg.jobId.toString(),
             jobTitle: job.title,
             otherUser: {
               ...otherUser,
-              _id: otherUser._id.toString() // Convert ObjectId to string
+              _id: otherUser._id.toString()
             },
             lastMessage: msg.lastMessage,
             updatedAt: msg.updatedAt,
@@ -426,19 +389,14 @@ router.get('/conversations', verifyToken, async (req, res) => {
             unreadCount: msg.unreadCount
           };
         } catch (error) {
-          console.error('Error processing conversation:', error);
           return null;
         }
       })
     );
 
     const validConversations = conversations.filter(Boolean);
-    console.log(`🔍 Returning ${validConversations.length} valid conversations`);
-    console.log('🔍 Final conversations:', JSON.stringify(validConversations, null, 2));
-
     res.json(validConversations);
   } catch (error) {
-    console.error('Error fetching conversations:', error);
     res.status(500).json({ 
       message: 'Error fetching conversations',
       error: error.message 
@@ -458,7 +416,6 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    console.error('Error fetching user details:', error);
     res.status(500).json({ message: 'Error fetching user details' });
   }
 });
