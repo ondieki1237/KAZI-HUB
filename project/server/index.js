@@ -26,6 +26,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = createServer(app);
 
+// Environment variables (move these to the top, before allowedOrigins)
+const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || 'localhost';
+const CLIENT_PORT = process.env.CLIENT_PORT || 5173;
+
 // CORS Allowed Origins (no trailing slash)
 const allowedOrigins = [
   `http://localhost:${CLIENT_PORT}`,
@@ -55,21 +60,7 @@ const io = new Server(server, {
 // Initialize Socket.IO from chat.js (merge with the above configuration)
 initializeSocket(io); // Pass the io instance to your chat.js initializeSocket function
 
-// Environment variables
-const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || 'localhost';
-const CLIENT_PORT = process.env.CLIENT_PORT || 5173;
-
 // CORS Configuration for Express
-const allowedOrigins = [
-  `http://localhost:${CLIENT_PORT}`,
-  `http://${HOST}:${CLIENT_PORT}`,
-  'https://localhost',
-  'http://localhost',
-  'https://kazi-hub-1.onrender.com',
-  'https://kazi-hub.onrender.com',
-];
-
 app.use(
   cors({
     origin: (origin, callback) => {
