@@ -26,23 +26,20 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://localhost",
+  "http://localhost",
   "https://kazi-hub-1.onrender.com",
+  "https://kazi-hub.onrender.com",
 ];
 
 // CORS middleware
 app.use(
   cors({
     origin: function (origin, callback) {
-      // ✅ Allow mobile apps (origin === undefined or null)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      // ✅ Match exact string or startsWith (in case of trailing slash)
+      if (!origin) return callback(null, true);
+      // Allow if origin matches or starts with any allowed origin (with or without trailing slash)
       if (allowedOrigins.some(o => origin === o || origin.startsWith(o + "/"))) {
         return callback(null, true);
       }
-
       return callback(new Error("CORS not allowed for this origin: " + origin));
     },
     credentials: true,

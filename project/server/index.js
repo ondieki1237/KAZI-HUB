@@ -26,16 +26,22 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = createServer(app);
 
+// CORS Allowed Origins (no trailing slash)
+const allowedOrigins = [
+  `http://localhost:${CLIENT_PORT}`,
+  `http://${HOST}:${CLIENT_PORT}`,
+  'https://localhost',
+  'http://localhost',
+  'https://kazi-hub-1.onrender.com',
+  'https://kazi-hub.onrender.com',
+];
+
 // Socket.IO Configuration
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      const allowedOrigins = [
-        `http://localhost:${process.env.CLIENT_PORT || 5173}`,
-        `http://${process.env.HOST || 'localhost'}:${process.env.CLIENT_PORT || 5173}`,
-        'https://kazi-hub-1.onrender.com', // Production frontend domain
-      ];
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.some(o => origin === o || origin.startsWith(o + "/"))) {
         callback(null, true);
       } else {
         callback(new Error('CORS not allowed for this origin'));
@@ -58,13 +64,17 @@ const CLIENT_PORT = process.env.CLIENT_PORT || 5173;
 const allowedOrigins = [
   `http://localhost:${CLIENT_PORT}`,
   `http://${HOST}:${CLIENT_PORT}`,
+  'https://localhost',
+  'http://localhost',
   'https://kazi-hub-1.onrender.com',
+  'https://kazi-hub.onrender.com',
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.some(o => origin === o || origin.startsWith(o + "/"))) {
         callback(null, true);
       } else {
         callback(new Error('CORS not allowed for this origin'));
