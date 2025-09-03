@@ -57,19 +57,22 @@ const Conversations: React.FC = () => {
   }, []);
 
   const fetchConversations = useCallback(async (silent = false) => {
-    const userId = currentUser?._id || currentUser?.id;
-    if (!userId) return;
+    if (!currentUser?._id && !currentUser?.id) {
+      setError({
+        show: true,
+        message: 'User not authenticated. Please log in.',
+        severity: 'warning',
+      });
+      return;
+    }
 
     try {
       if (!silent) setLoading(true);
-      console.log('Fetching conversations for user:', userId);
-      const response = await chat.getConversations(userId); // <-- pass userId here
+      const response = await chat.getConversations();
       console.log('Conversations response:', response);
 
       if (Array.isArray(response)) {
         setConversations(response);
-      } else if (response === null || response === undefined) {
-        setConversations([]);
       } else {
         setError({
           show: true,
@@ -94,8 +97,7 @@ const Conversations: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    const userId = currentUser?._id || currentUser?.id;
-    if (userId) {
+    if (currentUser?._id || currentUser?.id) {
       fetchConversations();
       const interval = setInterval(() => fetchConversations(true), 10000);
       return () => clearInterval(interval);
@@ -125,7 +127,7 @@ const Conversations: React.FC = () => {
     }
   };
 
-  const navigateToChat = (jobId: string, userId: string) => {
+  const navigateToChat = (jobId: string) => {
     const conversation = conversations.find((c) => c.jobId === jobId);
     const chatPartnerId = conversation?.otherUser._id;
 
@@ -140,7 +142,7 @@ const Conversations: React.FC = () => {
     }
   };
 
-    // Initialize Socket.IO connection
+  // Initialize Socket.IO connection
   useEffect(() => {
     const userId = currentUser?._id || currentUser?.id;
     if (!userId) return;
@@ -173,8 +175,6 @@ const Conversations: React.FC = () => {
 
     socketRef.current.on('connect_error', (error) => {
       console.error('🔴 Socket connection error:', error.message);
-      // Don't show error modal for socket connection issues, just log them
-      // Users can still use the app without real-time updates
     });
 
     socketRef.current.on('error', (error) => {
@@ -197,6 +197,7 @@ const Conversations: React.FC = () => {
             return {
               ...conv,
               lastMessage: message.content,
+              updatedAt: message.createdAt,
               unreadCount:
                 message.recipientId === userId
                   ? conv.unreadCount + 1
@@ -231,8 +232,17 @@ const Conversations: React.FC = () => {
       const fetchMessages = async () => {
         try {
           const response = await chat.getMessages(selectedChat.jobId, selectedChat.otherUser._id);
-          setMessages(response);
-          scrollToBottom();
+          if (Array.isArray(response)) {
+            setMessages(response);
+            scrollToBottom();
+          } else {
+            setError({
+              show: true,
+              message: 'Invalid messages response from server',
+              severity: 'error',
+            });
+            setMessages([]);
+          }
         } catch (error) {
           console.error('Error fetching messages:', error);
           setError({
@@ -240,6 +250,7 @@ const Conversations: React.FC = () => {
             message: 'Failed to load messages',
             severity: 'error',
           });
+          setMessages([]);
         }
       };
       fetchMessages();
@@ -257,6 +268,18 @@ const Conversations: React.FC = () => {
       );
 
       setMessages((prev) => [...prev, message]);
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.jobId === selectedChat.jobId
+            ? {
+                ...conv,
+                lastMessage: message.content,
+                updatedAt: message.createdAt,
+                messageCount: conv.messageCount + 1,
+              }
+            : conv
+        )
+      );
       setNewMessage('');
       scrollToBottom();
 
@@ -294,7 +317,7 @@ const Conversations: React.FC = () => {
         severity={error.severity}
         onClose={() => {
           setError({ show: false, message: '' });
-          if (error.severity === 'error') navigate(-1); // Navigate back only for critical errors
+          if (error.severity === 'error') navigate('/dashboard'); // Navigate to dashboard on critical errors
         }}
       />
       {/* Conversations List - Hide on mobile when chat is selected */}
@@ -309,7 +332,7 @@ const Conversations: React.FC = () => {
             <div className="flex flex-wrap justify-between items-center py-3 sm:py-4">
               <div className="flex items-center space-x-2 sm:space-x-3">
                 <button
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate('/dashboard')}
                   className="p-2 rounded-full hover:bg-teal-700"
                   aria-label="Back"
                 >
@@ -371,7 +394,10 @@ const Conversations: React.FC = () => {
               {filteredConversations.map((conversation) => (
                 <div
                   key={conversation.jobId}
-                  onClick={() => setSelectedChat(conversation)}
+                  onClick={() => {
+                    setSelectedChat(conversation);
+                    navigateToChat(conversation.jobId);
+                  }}
                   className={`px-3 sm:px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-150 ${
                     selectedChat?.jobId === conversation.jobId ? 'bg-teal-50' : ''
                   } ${conversation.unreadCount > 0 ? 'bg-teal-50/60' : ''}`}
@@ -467,39 +493,46 @@ const Conversations: React.FC = () => {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 min-h-0">
-              {messages.map((message) => (
-                <div
-                  key={message._id}
-                  className={`flex ${message.senderId === currentUser._id ? 'justify-end' : 'justify-start'} mb-2`}
-                >
-                  <div
-                    className={`relative max-w-[80%] sm:max-w-[70%] rounded-lg px-3 sm:px-4 py-2 shadow-md ${
-                      message.senderId === currentUser._id
-                        ? 'bg-teal-500 text-white'
-                        : 'bg-white text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                    <div className="flex items-center justify-end space-x-1 mt-1">
-                      <span className="text-xs opacity-75">
-                        {formatTime(message.createdAt)}
-                      </span>
-                      {message.senderId === currentUser._id && (
-                        <CheckCheck
-                          className={`h-3.5 w-3.5 ${message.read ? 'text-blue-400' : 'text-gray-400'}`}
-                        />
-                      )}
-                    </div>
-                    <div
-                      className={`absolute -bottom-1 ${
-                        message.senderId === currentUser._id
-                          ? 'right-2 border-t-teal-500 border-l-transparent'
-                          : 'left-2 border-t-white border-r-transparent'
-                      } w-0 h-0 border-t-[6px] border-l-[6px] border-r-[6px]`}
-                    />
-                  </div>
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <MessageSquare className="h-10 w-10 sm:h-12 sm:w-12 mb-4" />
+                  <p className="text-base sm:text-lg text-center">No messages yet. Start the conversation!</p>
                 </div>
-              ))}
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message._id}
+                    className={`flex ${message.senderId === currentUser._id ? 'justify-end' : 'justify-start'} mb-2`}
+                  >
+                    <div
+                      className={`relative max-w-[80%] sm:max-w-[70%] rounded-lg px-3 sm:px-4 py-2 shadow-md ${
+                        message.senderId === currentUser._id
+                          ? 'bg-teal-500 text-white'
+                          : 'bg-white text-gray-900'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                      <div className="flex items-center justify-end space-x-1 mt-1">
+                        <span className="text-xs opacity-75">
+                          {formatTime(message.createdAt)}
+                        </span>
+                        {message.senderId === currentUser._id && (
+                          <CheckCheck
+                            className={`h-3.5 w-3.5 ${message.read ? 'text-blue-400' : 'text-gray-400'}`}
+                          />
+                        )}
+                      </div>
+                      <div
+                        className={`absolute -bottom-1 ${
+                          message.senderId === currentUser._id
+                            ? 'right-2 border-t-teal-500 border-l-transparent'
+                            : 'left-2 border-t-white border-r-transparent'
+                        } w-0 h-0 border-t-[6px] border-l-[6px] border-r-[6px]`}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
               <div ref={messagesEndRef} />
             </div>
 

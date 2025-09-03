@@ -3,9 +3,9 @@ import type { Job, JobApplication } from '../types';
 
 // Determine base URL based on environment
 const isProduction = import.meta.env.MODE === 'production';
-export const API_URL = isProduction
-  ? 'https://kazi-hub.onrender.com'
-  : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+const API_BASE_URL = isProduction 
+  ? 'https://kazi-hub.onrender.com/api'  // Production backend URL
+  : (import.meta.env.VITE_API_URL || 'https://kazi-hub.onrender.com/api'); // Development URL
 
 interface ProfileData {
   _id: string;
@@ -28,6 +28,11 @@ interface ProfileData {
   updatedAt: string;
 }
 
+// Validate MongoDB ObjectId format (24-character hexadecimal string)
+const isValidObjectId = (id: string): boolean => {
+  return /^[0-9a-fA-F]{24}$/.test(id);
+};
+
 // Add ErrorModal state management
 let showErrorModal: ((message: string, severity: 'error' | 'warning' | 'info') => void) | null = null;
 
@@ -37,7 +42,7 @@ export const setErrorModalHandler = (handler: typeof showErrorModal) => {
 
 // Create axios instance with dynamic base URL
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -110,12 +115,11 @@ export const auth = {
         password: '[REDACTED]',
       });
       
-      // Transform the data to match server expectations
       const { phoneNumber, ...rest } = userData;
       const transformedData = {
         ...rest,
-        phone: phoneNumber, // Convert phoneNumber to phone
-        location: 'Default Location', // Add required location field
+        phone: phoneNumber,
+        location: 'Default Location',
       };
       
       const response = await api.post('/auth/register', transformedData);
@@ -139,20 +143,18 @@ export const auth = {
         ...userData,
       });
       
-      // Transform the data to match server expectations
       const transformedData = {
         name: userData.name,
         email: userData.email,
         googleId: userData.googleId,
         role: userData.role,
-        phone: '', // Default empty phone as Google doesn't provide it
-        location: 'Default Location', // Default location
+        phone: '',
+        location: 'Default Location',
       };
       
       const response = await api.post('/auth/register/google', transformedData);
       console.log('Google registration response:', response.data);
       
-      // Store token and user data if provided in response
       if (response.data.token && response.data.user) {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -174,7 +176,6 @@ export const auth = {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         
-        // Send welcome email after successful verification
         await auth.sendWelcomeEmail(email, user.name);
       }
 
@@ -192,7 +193,6 @@ export const auth = {
       console.log('Welcome email sent successfully');
     } catch (error) {
       console.error('Error sending welcome email:', error);
-      // Don't throw the error as this is not critical
     }
   },
 
@@ -481,7 +481,6 @@ export const profiles = {
       const response = await api.get('/users/my-profile');
       console.log('Profile data received:', response.data);
 
-      // Transform the data to match ProfileData interface
       const profileData: ProfileData = {
         _id: response.data._id,
         username: response.data.username,
@@ -518,7 +517,6 @@ export const profiles = {
   },
   updateProfile: async (profileData: Partial<ProfileData>): Promise<ProfileData> => {
     try {
-      // Transform the input data to match backend expectations
       const backendData = {
         name: profileData.username,
         phone: profileData.phoneNumber,
@@ -537,7 +535,6 @@ export const profiles = {
       const response = await api.patch('/users/profile', backendData);
       console.log('Profile update response:', response.data);
 
-      // Transform the response data to match ProfileData interface
       const updatedProfile: ProfileData = {
         _id: response.data._id,
         username: response.data.name || response.data.username,
@@ -645,10 +642,26 @@ export const payments = {
 
 const getStoredUser = () => {
   try {
-    return JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!user._id && !user.id) {
+      console.error('No user ID found in localStorage');
+      return null;
+    }
+    const userId = user._id || user.id;
+    // Validate ObjectId format
+    if (!isValidObjectId(userId)) {
+      console.error('Invalid user ID format in localStorage:', userId);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      return null;
+    }
+    console.log('Retrieved user from localStorage:', { userId });
+    return user;
   } catch (error) {
     console.error('Error parsing stored user:', error);
-    return {};
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    return null;
   }
 };
 
@@ -656,6 +669,9 @@ export const chat = {
   getMessages: async (jobId: string, userId: string) => {
     try {
       if (!jobId || !userId) throw new Error('Both Job ID and User ID are required');
+      if (!isValidObjectId(jobId) || !isValidObjectId(userId)) {
+        throw new Error('Invalid ID format');
+      }
       const response = await api.get(`/chats/${jobId}?userId=${userId}`);
       return response.data;
     } catch (error) {
@@ -666,6 +682,9 @@ export const chat = {
   sendMessage: async (jobId: string, content: string, userId: string) => {
     try {
       if (!jobId || !content || !userId) throw new Error('JobId, content, and userId are required');
+      if (!isValidObjectId(jobId) || !isValidObjectId(userId)) {
+        throw new Error('Invalid ID format');
+      }
       const response = await api.post(`/chats/${jobId}`, { content, recipientId: userId });
       return response.data;
     } catch (error) {
@@ -676,6 +695,9 @@ export const chat = {
   getUserDetails: async (userId: string) => {
     try {
       if (!userId) throw new Error('User ID is required');
+      if (!isValidObjectId(userId)) {
+        throw new Error('Invalid user ID format');
+      }
       const response = await api.get(`/chats/user/${userId}`);
       return response.data;
     } catch (error) {
@@ -683,9 +705,49 @@ export const chat = {
       throw error;
     }
   },
-  getConversations: async (userId: string) => {
-    const response = await api.get(`/api/chats/conversations/${userId}`);
-    return response.data;
+  getConversations: async () => {
+    const user = getStoredUser();
+    if (!user) {
+      console.error('No valid user found, aborting conversations fetch');
+      throw new Error('User not authenticated');
+    }
+
+    const userId = user._id || user.id;
+    console.log('Fetching conversations for user:', userId);
+    try {
+      console.log('Making API call to:', `${API_BASE_URL}/chats/conversations`);
+      console.log('Auth token:', localStorage.getItem('token') ? 'Present' : 'Missing');
+      const response = await api.get('/chats/conversations');
+      console.log('Conversations API response:', response.data);
+      
+      if (!Array.isArray(response.data)) {
+        console.warn('Unexpected response format, expected an array:', response.data);
+        return [];
+      }
+      
+      const validConversations = response.data.filter((conv: any) => 
+        conv.jobId && 
+        conv.jobTitle && 
+        conv.otherUser && 
+        conv.otherUser._id && 
+        conv.otherUser.name
+      );
+      
+      return validConversations;
+    } catch (error: any) {
+      console.error('Error fetching conversations:', {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        url: error.config?.url
+      });
+      if (error.response?.status === 400 && error.response?.data?.message === 'Invalid user ID format') {
+        console.error('Invalid user ID detected, clearing localStorage');
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        throw new Error('Invalid user ID. Please log in again.');
+      }
+      throw error;
+    }
   },
 };
 
