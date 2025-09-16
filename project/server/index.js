@@ -60,14 +60,16 @@ const io = new Server(server, {
 // Initialize Socket.IO from chat.js (merge with the above configuration)
 initializeSocket(io); // Pass the io instance to your chat.js initializeSocket function
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
+});
+
 // CORS Configuration for Express
-// Allow all origins in development for easier API testing (Postman, browser, etc.)
+// Allow all origins for public API access and health checks
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow all origins in development
-      callback(null, true);
-    },
+    origin: '*',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
